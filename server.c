@@ -31,17 +31,17 @@ void handle_connection(int client_socket);
  */
 struct Server setup_server(void)
 {
-	struct Server server = malloc(sizeof(struct Server));
+	struct Server *server = malloc(sizeof(struct Server));
 
-	server.domain = DOMAIN;
-	server.port = PORT;
-	server.bufsize = BUFSIZE;
-	server.backlog = BACKLOG;
-	server.type = TYPE;
-	server.protocol = PROTOCOL;
-	server.address.sin_family = DOMAIN;
-	server.address.sin_addr.s_addr = TYPE;
-	server.address.sin_port = htons(PORT);
+	server->domain = DOMAIN;
+	server->port = PORT;
+	server->bufsize = BUFSIZE;
+	server->backlog = BACKLOG;
+	server->type = TYPE;
+	server->protocol = PROTOCOL;
+	server->address.sin_family = DOMAIN;
+	server->address.sin_addr.s_addr = TYPE;
+	server->address.sin_port = htons(PORT);
 
 	if(server.socket = socket(DOMAIN, TYPE, PROTOCOL) < 0)
 	{
@@ -56,7 +56,7 @@ struct Server setup_server(void)
 		exit(1);
 	}
 	printf("Socket binding successful\n");
-	
+
 	if(listen(server_socket, backlog)) < 0)
 	{
 		perror("Socket listening failed\n");
@@ -64,7 +64,7 @@ struct Server setup_server(void)
 	}
 	printf("Socket listening successful\n");
 
-	return server;
+	return *server;
 }
 
 /*

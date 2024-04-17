@@ -3,7 +3,11 @@
 
 int main()
 {
-	struct Server server = setup_server();
-	handle_connections(server);
-}
+    // create Server
+    struct Server *server = setup_server();
 
+    // open connections
+    start_connection(&server);
+
+
+}
