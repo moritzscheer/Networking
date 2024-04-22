@@ -4,10 +4,10 @@
 int main()
 {
     // create Server
-    struct Server *server = setup_server();
+    int server_socket = setup_server();
 
     // open connections
-    start_connection(&server);
+    start_connection(server_socket);
 
 
 }
