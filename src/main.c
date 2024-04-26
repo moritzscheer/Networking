@@ -1,13 +1,13 @@
-#include "server.h"
-#include "server.c"
+#include "./server/setup_socket/setup_socket.c"
+#include "./server/server_loop/server_loop.c"
 
 int main()
 {
-    // create Server
-    int server_socket = setup_server();
+    initialize_resources();
 
-    // open connections
-    start_connection(server_socket);
+    configure_logging();
 
+    start_server();
 
+    handle_shutdown();
 }

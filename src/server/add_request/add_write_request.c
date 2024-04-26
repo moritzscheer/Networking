@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include "../request.h"
 
-int write_request(struct request *req)
+int add_write_request(struct request *req)
 {
 	struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
 

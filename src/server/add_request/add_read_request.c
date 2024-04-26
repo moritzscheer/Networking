@@ -6,7 +6,7 @@
 #include <liburing.h>
 #include "../request.h"
 
-int read_request(int client_socket)
+int add_read_request(int client_socket)
 {
 	struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
 	Request *client_request = malloc(sizeof(struct request) + sizeof(struct iovec));
