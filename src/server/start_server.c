@@ -1,5 +1,4 @@
 // Copyright (C) 2024 Moritz Scheer
-//
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -33,7 +32,8 @@ int start_server(void)
 		perror("Socket option editing failed!\n");
 		exit(1);
 	}
-
+	
+	printf("server has been created.");
 	return server_loop(server_socket);
 }
 
@@ -55,7 +55,7 @@ static void server_loop(int tcp_socket, int quic_socket)
 
 	add_accept_request(tcp_socket, &client_addr, &client_addr_len);
 	add_accept_request(quic_socket, &client_addr, &client_addr_len);
-
+	
 	while(1) 
 	{
 		int ret = io_uring_wait_cqe(&ring, &cqe); 
