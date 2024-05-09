@@ -12,13 +12,12 @@
 
 
 int start_server(void)
-{
-    int server_socket = init_socket();
+ {
+	int server_socket = init_socket();
 
 	pthread_t* threads = init_threads(udp_socket);
 
-    server_loop(server_socket);
+	server_loop(server_socket);
 
 	return handle_shutdown(server_socket, threads);
 }
-

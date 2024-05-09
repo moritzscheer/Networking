@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Moritz Scheer
+// Copyright (C) 2024, Moritz Scheer
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -6,58 +6,46 @@
 #include <stdlib.h>
 #include <liburing.h>
 #include <string.h>
+#include <stdint.h>
+#include <sys/uio.h>
 #include "../../includes/request.h"
+#include "../utils/error/p_return.c"
 
-// event_type definitions
 #define READ =      0
 #define WRITE =     1
 #define CLOSE =     2
+#define BUFSIZE = 65535 
+static const size_t REQUEST_SIZE = sizeof(struct request) + sizeof(struct iovec);
 
-void add_read_request(io_uring *ring, int client_socket)
+void add_read_request(io_uring *ring, int server_socket)
 {
     struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
-    if (!sqe)
-    {
-        perror("Failed to get SQE");
-        return;
-    }
+    if (!sqe) p_return("Failed to get SQE")
 
-    struct sockaddr_storage client_addr;
-    socklen_t client_addr_len = sizeof(client_addr);
-    uint8_t buf[65535];
+    struct request *request = malloc(REQUEST_SIZE);
+    if (!request) p_return("Failed to allocate buffer for request struct")
 
-    Request *request = malloc(sizeof(Request) + sizeof(struct iovec));
-    if (!request)
-    {
-        perror("Failed to allocate buffer");
-        return;
-    }
-    memset(&request, 0, sizeof(request));
+    uint8_t *buffer = malloc(BUFSIZE)
+    if (!buffer) p_return("Failed to allocate buffer for iov_base")
+    memset(buffer, 0, BUFSIZE);
 
+    request->iov[0].iov_base = buffer;
+    request->iov[0].iov_len = BUFSIZE;
     request->event_type = READ;
-    request->client_addr = client_addr;
-    request->client_addr_len = client_addr_len;
-    request->iov[0].iov_base = malloc(buf);
-    request->iov[0].iov_len = sizeof(buf);
 
-    if (!request->iov[0].iov_base)
-    {
-        perror("Failed to allocate buffer");
-        return;
-    }
-
-    io_uring_prep_recv(sqe, client_socket, request->iov[0].iov_base, request->iov[0].iov_len, 0);
+    io_uring_prep_read(sqe, server_socket, request->iov, request->iov[0].iov_len, 0);
     io_uring_sqe_set_data(sqe, request);
 }
 
 void add_write_request(io_uring *ring, Response *response)
 {
     struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
+    if (!sqe) p_return("Failed to get SQE")
 
     response->event_type = WRITE;
 
     io_uring_prep_writev(sqe, response->client_socket, response->iov, response->iovec_count, 0);
-    io_uring_sqe_set_data(sqe, request);
+    io_uring_sqe_set_data(sqe, response);
 }
 
 void add_close_request(io_uring *ring, Request *request)

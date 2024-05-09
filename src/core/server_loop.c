@@ -21,7 +21,7 @@ void server_loop(int server_socket)
     struct connection *connections = NULL;
 
     if(io_uring_queue_init(QUEUE_DEPTH, &ring, 0) < 0)
-        fatal_error("Could not initialize io_uring queue.");
+        p_exit("Could not initialize io_uring queue.");
     add_read_request(&ring, server_socket);
 
     while (1)
