@@ -4,23 +4,25 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include <string.h>
-#include "../types.h"
 #include <stdlib.h>
 
-int init_udp_socket(struct *udp_env)
+int init_udp_socket()
 {
-    if((udp_env->socket = socket(DOMAIN, SOCK_DGRAM, IPPROTO_QUIC)) < 0)
+    int server_socket;
+    struct sockaddr_in server_address
+
+    if((server_socket = socket(DOMAIN, SOCK_DGRAM, IPPROTO_QUIC)) < 0)
     {
         perror("Socket creation failed!\n");
         exit(1);
     }
 
-    memset(udp_env->address, 0, sizeof(struct sockaddr_in));
-    udp_env->address.sin_family = DOMAIN;
-    udp_env->address.sin_addr.s_addr = SOCK_DGRAM;
-    udp_env->address.sin_port = htons(PORT);
+    memset(server_address, 0, sizeof(struct sockaddr_in));
+    server_address.sin_family = DOMAIN;
+    server_address.sin_addr.s_addr = SOCK_DGRAM;
+    server_address.sin_port = htons(PORT);
 
-    if(setsockopt(udp_env->socket, SOL_QUIC, QUIC_SOCKOPT_ALPN, 1, sizeof(int))) < 0)
+    if(setsockopt(server_socket, SOL_QUIC, QUIC_SOCKOPT_ALPN, 1, sizeof(int))) < 0)
     {
         perror("Socket option editing failed!\n");
         exit(1);
@@ -31,7 +33,7 @@ int init_udp_socket(struct *udp_env)
         exit(1);
     }
 
-    if(bind(udp_env->socket, (sockaddr_in*) udp_env->address, sizeof(struct sockaddr_in)) < 0)
+    if(bind(server_socket, (sockaddr_in*) server_address, sizeof(struct sockaddr_in)) < 0)
     {
         perror("Socket binding failed!\n");
         exit(1);
@@ -43,5 +45,5 @@ int init_udp_socket(struct *udp_env)
         exit(1);
     }
 
-    return;
+    return server_socket;
 }

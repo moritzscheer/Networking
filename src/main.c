@@ -1,5 +1,5 @@
-#include "server/socket/init_udp_socket.c"
-#include "./server/server_loop/server_loop.c"
+#include "server/core/init_socket.c"
+#include "server/core/start_server.c"
 
 int main()
 {
@@ -8,6 +8,4 @@ int main()
     configure_logging();
 
     start_server();
-
-    handle_shutdown();
 }

@@ -1,11 +1,12 @@
 // Copyright (C) 2024 Moritz Scheer
+
 #ifndef SERVER
 #define SERVER
 
-typedef struct request {
+typedef struct {
     int event_type;
+    struct sockaddr_in source_addr;
     int iovec_count;
-    int client_socket;
     struct iovec iov[];
 } Request;
 

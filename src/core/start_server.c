@@ -7,15 +7,18 @@
 #include <netinet/quic.h>
 #include <stdlib.h>
 #include "server_loop.c"
-#include "types.h"
+#include "init_socket.c"
+#include "init_threads.c"
+
 
 int start_server(void)
 {
-	socket *udp_socket = malloc(sizeof(struct udp_env));
-	init_udp_socket(udp_socket);
+    int server_socket = init_socket();
 
 	pthread_t* threads = init_threads(udp_socket);
 
-	return server_loop(udp_socket);
+    server_loop(server_socket);
+
+	return handle_shutdown(server_socket, threads);
 }
 
