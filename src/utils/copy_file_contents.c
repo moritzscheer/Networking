@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include "../memory/buffer_alloc.c"
+#include "alloc_buffer.c"
 #include "../error/fatal_error.c"
 
 void copy_file_contents(char *file_path, off_t file_size, struct iovec *iov) 

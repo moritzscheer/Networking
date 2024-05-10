@@ -9,7 +9,8 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <liburing.h>
-#include "../handlers/io_handler.c"
+#include "../handlers/io_handler.h"
+#include "../handlers/parse_request.h"
 #include "../../includes/io_entry.h"
 #include "../../includes/connection.h"
 #include "../../lib/uthash/uthash.h"
@@ -36,16 +37,16 @@ void server_loop(int server_socket)
 
         while (1)
         {
-            io_entry *entry = (io_entry *) cqe->user_data;
+            Request *request = (Request *) cqe->user_data;
 
-            switch (entry->event_type)
+            switch (request->event_type)
             {
                 case READ:
                     if(cqe->res > 0)
                     {
-                        response = handle_http_request();
-                        add_write_request(&ring, response);
-                        add_read_request(&ring, entry->client_socket);
+                        request = parse_request(request);
+                        add_write_request(&ring, request);
+                        add_read_request(&ring, server_socket);
                         submissions += 2;
                     }
                     else if(cqe->res < 0)
@@ -56,15 +57,13 @@ void server_loop(int server_socket)
                     else
                     {
                         fprintf(stderr, "Zero-length read: no data or end of stream.\n");
-                        add_read_request(ring, request->client_socket);
+                        add_read_request(ring, server_socket);
                         submissions += 1;
-
                     }
                     break;
                 case WRITE:
                     if(cqe->res > 0)
                     {
-                        free_response(response);
                         free_request(request);
                     }
                     else if(cqe->res < 0)
@@ -73,11 +72,10 @@ void server_loop(int server_socket)
                     }
                     else
                     {
-                        add_write_request(&ring, response);
+                        add_write_request(&ring, request);
                     }
                     break;
                 case CLOSE:
-                    free_response(response);
                     free_request(request);
                     break;
                 default:

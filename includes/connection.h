@@ -3,17 +3,26 @@
 #ifndef NETWORKING_CONNECTION_H
 #define NETWORKING_CONNECTION_H
 
-struct connection {
-    uint8_t cid[LOCAL_CONN_ID_LEN];
-
-    int client_socket;
-
-    struct sockaddr_storage client_addr;
-    socklen_t client_addr_len;
-
-    quiche_conn *conn;
-
+typedef struct
+{
+    int64_t id;
+    SSL session;
+    ngtcp2_conn *conn;
+    int socket_fd;
+    int timer_fd;
+    Stream *streams;
+    struct sockaddr_storage local_addr;
+    size_t local_addrlen;
+    struct sockaddr_storage remote_addr;
+    size_t remote_addrlen;
     UT_hash_handle hh;
-};
+} Connection;
+
+Connection create_connection(SSL session, int socket_fd);
+void close_connection();
+void free_connection();
+int read_connection();
+int write connection();
+Connection *find_connection(Connection* connections, uint8_t *dcid, size_t dcid_size);
 
 #endif

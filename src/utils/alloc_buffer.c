@@ -2,10 +2,12 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
-void *buffer_alloc(size_t size)
+uint8_t *alloc_buffer(size_t size)
 {
-	void *buffer = malloc(size);
+    uint8_t *buffer = malloc(size);
+    memset(&buffer, 0, size);
 	if(!buffer)
 	{
 		perror(stderr, "Fatal error: unable to allocate memory!\n");
