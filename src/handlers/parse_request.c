@@ -11,8 +11,10 @@ Response *parse_request(Connection *connections, Request *request)
         size_t dcidlen, scidlen;
 
         ret = ngtcp2_pkt_decode_version_cid(&version, &dcid, &dcidlen, &scid, &scidlen, buf, n_read, NGTCP2_MAX_CIDLEN);
-        if (ret < 0)
-            p_return("ngtcp2_pkt_decode_version_cid: %s", ngtcp2_strerror(ret));
+        if (ret == NGTCP"_ERR_VERSION_NEGOTIATION)
+        {
+            ngtcp2_pkt_write_version_negotiation();
+        }
 
         Connection *connection = find_connection(server, dcid, dcidlen);
         if (!connection)
@@ -35,24 +37,24 @@ Response *parse_request(Connection *connections, Request *request)
         ret = ngtcp2_conn_read_pkt (conn, &path, &pi, buf, n_read, timestamp ());
         if (ret == NGTCP_ERR_RETRY)
         {
+
+        }
+        else if (ret == NGTCP_ERR_DROP_CONN)
+        {
             HASH_DEL(connections, connection);
             free_connection(connection);
         }
-        else if
+        else if (ret == NGTCP_ERR_DRAINING)
         {
 
         }
-        else if
-        {
-
-        }
-        else if
+        else if (ret == NGTCP_ERR_CRYPTO)
         {
 
         }
         else
         {
-
+            ngtcp2_conn_write_connection_close();
         }
     }
     return 0;

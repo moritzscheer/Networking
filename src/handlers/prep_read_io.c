@@ -1,6 +1,6 @@
 // Copyright (C) 2024, Moritz Scheer
 
-void add_read_request(io_uring *ring, int server_socket)
+void prep_read_io(io_uring *ring, int server_socket)
 {
     struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
     if (!sqe) p_return("Failed to get SQE")

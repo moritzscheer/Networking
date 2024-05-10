@@ -1,3 +1,1 @@
-//
-// Created by morit on 08.05.2024.
-//
+// Copyright (C) 2024 Moritz Scheer
