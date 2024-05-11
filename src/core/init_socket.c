@@ -9,7 +9,7 @@
 int init_udp_socket()
 {
     int server_socket;
-    struct sockaddr_in server_address
+    struct sockaddr_in server_address;
 
     if((server_socket = socket(DOMAIN, SOCK_DGRAM, IPPROTO_QUIC)) < 0)
     {
