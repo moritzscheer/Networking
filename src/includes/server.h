@@ -1,15 +1,19 @@
-//
-// Created by Moritz on 5/11/24.
-//
+// Copyright (C) 2024 Moritz Scheer
 
 #ifndef _SERVER_H_
 #define _SERVER_H_
 
 typedef struct {
-	int server_socket;
+	int socket;
+
 	struct sockaddr_storage local_addr;
 	size_t local_addrlen;
+
+	struct io_uring *ring;
+	struct io_uring_cqe *cqe;
+
 	Connection *connections;
+
 	ngtcp2_settings settings;
 	ngtcp2_cid scid;
 } Server;

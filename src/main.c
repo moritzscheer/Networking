@@ -1,19 +1,41 @@
 // Copyright (C) 2024 Moritz Scheer
 
-#include "server/core/init_socket.c"
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
+
+#include "./core/resources.h"
+#include "./core/loop.h"
+#include "./includes/server.h"
+
+static int status_code;
 
 int main()
 {
-	struct Server server;
-	int result;
+	Server *server;
 
-	result = init_resources(server);
-	if (result < 0) p_exit("could not initialize resources");
+	status_code = init_resources(server);
+	if (status_code < 0)
+	{
+		cleanup_resources(server);
+		return status_code;
+	}
 
-	result = configure_logging(server);
-	if (result < 0) p_exit("could not configure logging");
+	status_code = configure_logging(server);
+	if (status_code < 0)
+	{
+		cleanup_resources(server);
+		return status_code;
+	}
 
-	result = server_loop(server);
-	handle_shutdown(server_socket, threads);
-	return result < 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+	status_code = server_loop(server->ring, server->cqe, server->socket);
+	if (status_code < 0)
+	{
+		cleanup_resources(server);
+		return status_code;
+	}
+
+	cleanup_resources(server);
+	return EXIT_SUCCESS;
 }
+

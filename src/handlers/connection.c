@@ -1,5 +1,6 @@
 // Copyright (C) 2024 Moritz Scheer
 
+#include "connection.h"
 #include "../includes/connection.h"
 
 Connection create_connection(SSL session, int socket_fd)

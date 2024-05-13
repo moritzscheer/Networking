@@ -1,5 +1,10 @@
 // Copyright (C) 2024 Moritz Scheer
 
+#include <stdint.h>
+#include <stddef.h>
+
+#include "parser.h"
+
 Response *parse_request(Connection *connections, Request *request)
 {
     uint8_t buf[BUF_SIZE];

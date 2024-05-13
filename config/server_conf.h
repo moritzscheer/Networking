@@ -5,13 +5,15 @@
 // server config makros
 // ------------------------------------------------------------------
 
-#define DOMAIN AF_INET6
+#define DOMAIN AF_INET
+
+#define IPPROTO_UDP 17
 
 #define PORT 8989
 
-#define BUFSIZE 4096
-
 #define BACKLOG 1
+
+#define BUFSIZE 4096
 
 #define CONN_TIMEOUT 30
 #define READ_TIMEOUT 10
@@ -19,8 +21,6 @@
 
 #define MAX_CONNECTIONS 100
 
-// ------------------------------------------------------------------
-// server config makros
 // ------------------------------------------------------------------
 
 #endif
