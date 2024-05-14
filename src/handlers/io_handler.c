@@ -12,12 +12,6 @@
 
 int init_uring(Server *server)
 {
-	server->ring = malloc(sizeof(struct io_uring));
-	if (!server->ring)
-	{
-		return ENOMEM;
-	}
-
 	if (io_uring_queue_init(QUEUE_DEPTH, server->ring, 0) < 0)
 	{
 		perror("Could not initialize io_uring queue.");

@@ -3,6 +3,6 @@
 #ifndef _SOCKET_H_
 #define _SOCKET_H_
 
-int init_socket(int *socket);
+int initialize_socket(int *socket);
 
 #endif //_SOCKET_H_

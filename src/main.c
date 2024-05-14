@@ -14,28 +14,17 @@ int main()
 {
 	Server *server;
 
-	status_code = init_resources(server);
+	status_code = initialize_resources(server);
 	if (status_code < 0)
 	{
 		cleanup_resources(server);
 		return status_code;
 	}
 
-	status_code = configure_logging(server);
-	if (status_code < 0)
-	{
-		cleanup_resources(server);
-		return status_code;
-	}
-
-	status_code = server_loop(server->ring, server->cqe, server->socket);
-	if (status_code < 0)
-	{
-		cleanup_resources(server);
-		return status_code;
-	}
+	status_code = server_loop(server);
 
 	cleanup_resources(server);
-	return EXIT_SUCCESS;
+
+	return status_code < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 

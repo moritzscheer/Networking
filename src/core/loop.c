@@ -1,5 +1,6 @@
 // Copyright (C) 2024 Moritz Scheer
 
+#include <linux/types.h>
 #include <linux/io_uring.h>
 #include <liburing.h>
 #include <errno.h>
@@ -12,9 +13,22 @@
 #include "../includes/server.h"
 #include "../includes/IORequest.h"
 
-void server_loop(o_uring *ring, io_uring_cqe *cqe, int server_socket)
+void server_loop(Server *server)
 {
-	while (MAIN_SERVER_LOOP)
+	struct io_uring ring = ring;
+	struct io_uring_cqe* cqe = cqe;
+	int server_socket = server_socket;
+
+	status_code = io_uring_queue_init(QUEUE_DEPTH, ring, 0);
+	if (status_code < 0)
+	{
+		perror("Could not initialize io_uring queue.");
+		return errno;
+	}
+
+	prep_read_io(ring, server_socket);
+
+	while (1) /* main server loop */
 	{
 		int submissions = 0;
 
@@ -24,8 +38,8 @@ void server_loop(o_uring *ring, io_uring_cqe *cqe, int server_socket)
 			perror("waiting for completion");
 			break;
 		}
-5
-		while (REQUESTS_IN_QUEUE)
+
+		while (1) /* main server loop */
 		{
 			IORequest *request = (IORequest *) cqe->user_data;
 
@@ -43,11 +57,11 @@ void server_loop(o_uring *ring, io_uring_cqe *cqe, int server_socket)
 					else if (cqe->res < 0)
 					{
 						/* ----- FAILURE ------ */
-						// TODO: Handling of retries
+
 					}
 					else
 					{
-						/* TODO: Handling of stream */
+
 						prep_read_io(ring, server_socket);
 						*submissions += 1;
 					}
@@ -61,7 +75,7 @@ void server_loop(o_uring *ring, io_uring_cqe *cqe, int server_socket)
 					else if (cqe->res == -1)
 					{
 						/* ----- FAILURE ------ */
-						/* TODO: Handling of retries */
+
 					}
 					break;
 				case CLOSE: free(request);
@@ -79,12 +93,10 @@ void server_loop(o_uring *ring, io_uring_cqe *cqe, int server_socket)
 			/* no remaining work in completion queue */
 			if (io_uring_peek_cqe(ring, &cqe) == -EAGAIN) break;
 		}
-
 		/* submits the prepared io operations to the queue if any requests registered */
 		if (submissions > 0)
 			io_uring_submit(ring);
 	}
-
 	io_uring_queue_exit(ring);
 	return 0;
 }

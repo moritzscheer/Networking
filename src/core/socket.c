@@ -10,7 +10,7 @@
 #include "socket.h"
 #include "../../config/server_conf.h"
 
-int init_socket(int *server_socket)
+int initialize_socket(int *server_socket)
 {
 	struct sockaddr_in server_address;
 
