@@ -3,6 +3,7 @@
 #ifndef _PARSER_H_
 #define _PARSER_H_
 
-Response *parse_request(Connection *connections, Request *request);
+int parse(Connection *connections, io_buffer *io_buffer);
+int decode(iovec iov, *version, *dcid, *dcidlen, *scid, *scidlen);
 
 #endif //_PARSER_H_

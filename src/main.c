@@ -7,24 +7,21 @@
 #include "./core/resources.h"
 #include "./core/loop.h"
 #include "./includes/server.h"
-
-static int status_code;
+#include "includes/errno2.h"
 
 int main()
 {
-	Server *server;
+	server *server;
+	res = EXIT_SUCCESS;
 
-	status_code = initialize_resources(server);
-	if (status_code < 0)
+	res = initialize_resources(server);
+	if (res < 0)
 	{
 		cleanup_resources(server);
-		return status_code;
+		return res;
 	}
 
-	status_code = server_loop(server);
-
+	res = server_loop(server);
 	cleanup_resources(server);
-
-	return status_code < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
+	return res;
 }
-

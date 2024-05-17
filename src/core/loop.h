@@ -7,8 +7,8 @@
 #define MAIN_SERVER_LOOP 1
 #define REQUESTS_IN_QUEUE 1
 
-static int status_code;
+static int result;
 
-void server_loop(Server *server)
+void server_loop(server *server)
 
 #endif //_LOOP_H_

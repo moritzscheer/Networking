@@ -31,5 +31,4 @@ int delete(int id)
 	snprintf(str, sizeof(str), "%d", id);
 
 	char *sql = "DELETE FROM address WHERE address_ID = ";
-
 }

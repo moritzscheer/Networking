@@ -99,7 +99,7 @@ main()
     fi
 
     echo "-----------------------------------------------"
-    echo "------ Project installation steps [0/5] -------"
+    echo "       Project installation steps [0/5]        "
     echo "-----------------------------------------------"
     echo
 
@@ -117,7 +117,7 @@ main()
 
     echo
     echo "-----------------------------------------------"
-    echo "---- Installation completed successfully! -----"
+    echo "     Installation completed successfully!      "
     echo "-----------------------------------------------"
 }
 

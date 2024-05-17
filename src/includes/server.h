@@ -3,19 +3,16 @@
 #ifndef _SERVER_H_
 #define _SERVER_H_
 
-typedef struct {
+typedef struct server {
 	int socket;
 
 	struct sockaddr_storage local_addr;
 	size_t local_addrlen;
 
-	struct io_uring *ring;
-	struct io_uring_cqe *cqe;
-
 	Connection *connections;
 
 	ngtcp2_settings settings;
 	ngtcp2_cid scid;
-} Server;
+} server;
 
 #endif //_SERVER_H_

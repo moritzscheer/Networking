@@ -7,35 +7,54 @@
 
 #include "resources.h"
 #include "../includes/server.h"
-#include "../handlers/io_handler.h"
 #include "socket.h"
+#include "../includes/errno2.h"
 
-int initialize_resources(Server *server)
+int initialize_resources(server *server)
 {
-	status_code = allocate_base_memory(server);
-	if (status_code < 0)
-		return status_code;
+	printf("-----------------------------------------------\n"
+	       "      Project configuration steps [0/6]        \n"
+	       "-----------------------------------------------\n\n")
 
-	status_code = initialize_socket(server->socket);
-	if (status_code < 0)
-		return status_code;
+	res = allocate_base_memory(server);
+	if (res < 0)
+		return res;
+	printf("[1/6] Base memory allocated\n");
 
-	status_code = configure_logging();
-	if (status_code < 0)
-		return status_code;
+	res = initialize_socket(server->socket);
+	if (res < 0)
+		return res;
+	printf("[2/6] Socket configured\n");
 
-	status_code = configure_session(server->ssl);
-	if (status_code < 0)
-		return status_code;
+	res = initialize_database();
+	if (res < 0)
+		return res;
+	printf("[3/6] Database configured\n")
 
-	status_code = initialize_database();
-	if (status_code < 0)
-		return status_code;
+	res = configure_logging();
+	if (res < 0)
+		return res;
+	printf("[4/6] Logging configured\n");
 
+	res = configure_session(server->ssl);
+	if (res < 0)
+		return res;
+	printf("[5/6] SSL configured\n");
+
+	res = configure_ngtcp2(&server.settings);
+	if (res < 0)
+		return res;
+	printf("[6/6] ngtcp2 configured\n");
+
+	printf("\n"
+	       "-----------------------------------------------\n"
+	       "             Project is configured             \n"
+	       "-----------------------------------------------\n"
+	       "\n");
 	return 0;
 }
 
-void cleanup_resources(Server *server)
+void cleanup_resources(server *server)
 {
 	/* tries to close file descriptor 3 times */
 	int res, count = 0;
@@ -46,27 +65,17 @@ void cleanup_resources(Server *server)
 	}
 	while (res < 0 && errno != EBADF && count < 3);
 
-	/* free's the io_uring buffer */
-	if (server->ring)
-		free(server->ring);
-
 	/* free's the main server buffer */
 	if (server)
 		free(server);
 }
 
-static int allocate_base_memory(Server *server)
+static int allocate_base_memory(server *server, uring *uring)
 {
-	server = malloc(sizeof(Server));
+	server = malloc(sizeof(struct server));
 	if (!server)
 	{
 		perror("failed to allocate memory for server struct");
-		return ENOMEM;
-	}
-	server->ring = malloc(sizeof(struct io_uring));
-	if (!server->ring)
-	{
-		perror("failed to allocate memory for uring struct");
 		return ENOMEM;
 	}
 	return 0;
