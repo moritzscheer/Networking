@@ -1,12 +1,20 @@
 // Copyright (C) 2024, Moritz Scheer
 
-#include "write.h"
-#include "../includes/server.h"
-#include "../includes/io_buffer.h"
+#include <stdlib.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/socket.h>
 
-int handle_write_result(server *server, io_buffer *io_buffer, int result)
+#include "write.h"
+#include "../handlers/parser.h"
+#include "../handlers/buffer.h"
+#include "../includes/message.h"
+#include "../includes/status.h"
+#include "../includes/server.h"
+
+int handle_write_result(server *server, message *message, int result)
 {
-	if (bytes_written == -1)
+	if (result == -1)
 	{
 		switch (errno)
 		{
@@ -37,15 +45,27 @@ int handle_write_result(server *server, io_buffer *io_buffer, int result)
 	return DONT_RETRY;
 }
 
-int *prepare_write(io_uring *ring, int socket, io_buffer *io_buffer)
+int prepare_write(io_uring *ring, int socket, int *submissions, msghdr *message)
 {
-	io_buffer->event_type = WRITE;
+	if (message == NULL)
+	{
+		int result = get_buffer(message);
+		if (result != 0)
+		{
+			return result;
+		}
+	}
 
 	struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
-	if(sqe == NULL)
-		return QUEUE_FULL;
+	if (sqe == NULL)
+	{
+		io_uring_submit(ring);
+		return SQ_FULL;
+	}
 
-	io_uring_prep_writev(sqe, socket, io_buffer->iov, io_buffer->iovec_count, 0);
-	io_uring_sqe_set_data(sqe, io_buffer);
+	set_event_type(message, WRITE);
+	(*submissions)++;
+	io_uring_prep_sendmsg(sqe, socket, message, 0);
+	io_uring_sqe_set_data(sqe, message);
 	return 0;
 }

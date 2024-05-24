@@ -8,9 +8,9 @@
 #include "resources.h"
 #include "../includes/server.h"
 #include "socket.h"
-#include "../includes/errno2.h"
+#include "../includes/status.h"
 
-int initialize_resources(server *server)
+int initialize_resources(Server *server)
 {
 	printf("-----------------------------------------------\n"
 	       "      Project configuration steps [0/6]        \n"
@@ -54,7 +54,7 @@ int initialize_resources(server *server)
 	return 0;
 }
 
-void cleanup_resources(server *server)
+void cleanup_resources(Server *server)
 {
 	/* tries to close file descriptor 3 times */
 	int res, count = 0;
@@ -70,9 +70,9 @@ void cleanup_resources(server *server)
 		free(server);
 }
 
-static int allocate_base_memory(server *server, uring *uring)
+static int allocate_base_memory(Server *server)
 {
-	server = malloc(sizeof(struct server));
+	server *server = calloc(1, sizeof(server));
 	if (!server)
 	{
 		perror("failed to allocate memory for server struct");

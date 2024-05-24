@@ -2,73 +2,67 @@
 
 #include <stdlib.h>
 #include <errno.h>
+#include <string.h>
+#include <sys/socket.h>
 
 #include "read.h"
 #include "../handlers/parser.h"
+#include "../handlers/buffer.h"
+#include "../includes/message.h"
+#include "../includes/status.h"
 #include "../includes/server.h"
-#include "../includes/io_buffer.h"
-#include "../includes/errno2.h"
 
 
-int handle_read_result(server *server, io_buffer *io_buffer, int result)
+int handle_read_result(server *server, message *message, int result)
 {
 	if (result > 0)
-		return parse(server, io_buffer);
+		return parse(server, message);
 	else if (result < 0)
-		return handle_read_error(server, io_buffer, result);
+		switch (result)
+		{
+			case EINTR: // Read operation interrupted by signal
+				return RETRY;
+			case EAGAIN: //
+			case EWOULDBLOCK:
+				fprintf(stderr, "No data available to read (non-blocking mode)\n");
+				break;
+			case EBADF:
+				fprintf(stderr, "Invalid file descriptor\n");
+				break;
+			default:
+				return DONT_RESPOND;
+		}
 	else
 	{
 		if (end_of_stream())
-			close_stream(io_buffer);
-		if (empty_packet(io_buffer))
+			close_stream(message);
+		if (empty_packet(message))
 			return DONT_RESPOND;
 		else
 	}
 }
 
-int *prepare_read(io_uring *ring, int socket, io_buffer *io_buffer)
+int prepare_read(io_uring *ring, int socket, int *submissions, struct msghdr *message)
 {
-	if (io_buffer == NULL)
+	if (message == NULL)
 	{
-		io_buffer = malloc(sizeof(uint8_t) * REQUEST_SIZE);
-		if (io_buffer == NULL)
+		int result = get_buffer(message);
+		if (result != 0)
 		{
-			perror("Failed to allocate memory for IO Buffer");
-			return errno;
-		}
-
-		memset(io_buffer, 0, REQUEST_SIZE);
-		for (int i = 0; i < MAX_IOV; i++)
-		{
-			io_buffer->iov[i].iov_base = io_buffer->buffer[i];
-			io_buffer->iov[i].iov_len = BUFFER_SIZE;
+			return result;
 		}
 	}
 
 	struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
 	if (sqe == NULL)
-		return QUEUE_FULL;
-
-	io_uring_prep_readv(sqe, socket, io_buffer->iov, MAX_IOV, 0);
-	io_uring_sqe_set_data(sqe, io_buffer);
-	return 0;
-}
-
-int handle_read_error(server *server, io_buffer *io_buffer, int result)
-{
-	io_buffer->tries = (!io_buffer->tries) ? 0 : io_buffer->tries++
-
-	switch (result) {
-		case EINTR: // Read operation interrupted by signal
-			return RETRY;
-		case EAGAIN: //
-		case EWOULDBLOCK:
-			fprintf(stderr, "No data available to read (non-blocking mode)\n");
-			break;
-		case EBADF:
-			fprintf(stderr, "Invalid file descriptor\n");
-			break;
-		default:
-			return DONT_RESPOND;
+	{
+		io_uring_submit(ring);
+		return SQ_FULL;
 	}
+
+	set_event_type(message, READ);
+	(*submissions)++;
+	io_uring_prep_recvmsg(sqe, socket, message, 0);
+	io_uring_sqe_set_data(sqe, message);
+	return 0;
 }

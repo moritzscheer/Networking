@@ -3,9 +3,9 @@
 #ifndef _URING_H_
 #define _URING_H_
 
-typedef struct uring {
+typedef struct Uring {
 	struct io_uring *ring;
 	struct io_uring_cqe *cqe;
-} uring;
+} Uring;
 
 #endif //_URING_H_

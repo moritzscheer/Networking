@@ -3,16 +3,17 @@
 #ifndef _SERVER_H_
 #define _SERVER_H_
 
-typedef struct server {
+typedef struct Server {
 	int socket;
 
 	struct sockaddr_storage local_addr;
 	size_t local_addrlen;
 
 	Connection *connections;
+	Bufferpool *buffers;
 
 	ngtcp2_settings settings;
 	ngtcp2_cid scid;
-} server;
+} Server;
 
 #endif //_SERVER_H_

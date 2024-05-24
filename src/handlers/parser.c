@@ -5,9 +5,8 @@
 #include <string.h>
 
 #include "parser.h"
-#include "../includes/io_buffer.h"
-#include "../includes/errno2.h"
-#include "../handlers/connection.h"
+#include "../includes/status.h"
+#include "../utils/connection.h"
 
 int parse(Connection *connections, io_buffer *io_buffer)
 {

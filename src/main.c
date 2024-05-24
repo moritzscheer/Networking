@@ -7,11 +7,11 @@
 #include "./core/resources.h"
 #include "./core/loop.h"
 #include "./includes/server.h"
-#include "includes/errno2.h"
+#include "includes/status.h"
 
 int main()
 {
-	server *server;
+	Server *server;
 	res = EXIT_SUCCESS;
 
 	res = initialize_resources(server);

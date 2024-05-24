@@ -3,7 +3,7 @@
 #ifndef _RESOURCES_H_
 #define _RESOURCES_H_
 
-int initialize_resources(server *server);
-void cleanup_resources(server *server);
+int initialize_resources(Server *server);
+void cleanup_resources(Server *server);
 
 #endif //_RESOURCES_H_

@@ -1,146 +1,118 @@
-// Copyright (C) 2024 Moritz Scheer
 
 #include <linux/types.h>
 #include <linux/io_uring.h>
+#include <sys/socket.h>
 #include <liburing.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
 
 #include "loop.h"
+#include "../core/threads.h"
 #include "../handlers/read.h"
 #include "../handlers/write.h"
-#include "../includes/server.h"
-#include "../includes/uring.h"
-#include "../includes/io_buffer.h"
-#include "../includes/errno2.h"
+#include "../handlers/buffer.h"
+#include "../includes/server.h" -
+#include "../includes/message.h"
+#include "../includes/status.h"
 
-void server_loop(server *server, uring *uring)
+static struct io_uring *ring;
+static struct io_uring_cqe *cqe;
+
+void server_loop(Server *server)
 {
-	struct io_uring *ring;
-	struct io_uring_cqe *cqe;
-	int socket = server->socket;
+	int result;
 
-	res = io_uring_queue_init(QUEUE_DEPTH, ring, 0);
-	if (res != 0)
+	result = io_uring_queue_init(QUEUE_DEPTH, ring, 0);
+	if (result != 0)
 	{
 		perror("Could not initialize io_uring queue.");
-		return errno;
+		return result;
 	}
 
-	res = prepare_read(ring, socket);
-	if (res != 0)
+	result = prepare_read(ring, server->socket);
+	if (result != 0)
 	{
-		fprintf("failed to initialize io_uring queue.\n")
 		io_uring_queue_exit(ring);
-		return res;
+		return result;
 	}
 
-	/*
-	 * Main Server Loop:
-	 * This loop manages incoming HTTP connections, processes requests, writes responses if requested.
-	 * It utilizes asynchronous I/O operations to handle multiple concurrent connections efficiently.
-	 *
-	 * Event Handling and Submission:
-	 * The loop retrieves completed events from the Completion Queue Entry (CQE) structure, which stores information
-	 * about completed asynchronous I/O operations. It then submits new asynchronous I/O operations to the server's
-	 * event loop, enabling non-blocking handling of incoming requests.
-	 */
 	while (1)
 	{
-		int submissions = 0;
-
-		res = io_uring_wait_cqe(ring, &cqe);
-		if (res < 0)
+		result = io_uring_wait_cqe(ring, &cqe);
+		if (result != 0)
 		{
 			perror("waiting for completion");
 			break;
 		}
 
-		/*
-		 * Request Processing Loop:
-		 * This loop iterates through each received request, parsing and handling them sequentially.
-		 *
-		 * Asynchronous Operation Management:
-		 * Additionally, the loop checks the status of the Submission Queue and pushes further asynchronous I/O
-		 * operations to the Submission Queue Entry (CQE) structure for the next asynchronous operation.
-		 */
-		while (1)
+		result = start_handling_tasks();
+		if (result != 0)
 		{
-			io_buffer *io_buffer = (struct io_buffer *) cqe->user_data;
+			break;
+		}
+	}
 
-			switch (io_buffer->event_type)
-			{
-				case READ:
-				{
-					res = handle_read_result(server, io_buffer, cqe->res);
+	io_uring_queue_exit(ring);
+	return result;
+}
 
-					switch (res)
-					{
-						case RESPOND:
-							res = prepare_write(ring, socket, io_buffer);
-							if(res == QUEUE_FULL)
-								goto submit;
-							submissions++;
-							break;
-						case RETRY:
-							res = prepare_read(ring, socket, io_buffer);
-							if(res == QUEUE_FULL)
-								goto submit;
-							else if (res != 0)
-								return res;
-							submissions++;
-							break;
-						case EXIT:
-							return res;
-					}
+void *thread_function()
+{
+	bool wait_is_necessary = true;
+	int result = 0;
 
-					res = prepare_read(ring, socket);
-					if(res == QUEUE_FULL)
-						goto submit;
-					else if (res != 0)
-						return res;
-					submissions++;
-					break;
-				}
-				case WRITE:
-				{
-					res = handle_write_result(server, io_buffer, cqe->res);
-
-					if (res == RETRY && tries < MAX_TRIES)
-					{
-						res = prepare_write(ring, socket, io_buffer);
-						if(res == QUEUE_FULL)
-							goto submit;
-						submissions++;
-					}
-
-					else free(io_buffer);
-					break;
-				}
-				default:
-				{
-					perror("Unexpected request type");
-					break;
-				}
-			}
-
-			/* mark entry as seen */
-			io_uring_cqe_seen(ring, cqe);
-
-			/* the submission queue is full */
-			if (io_uring_sq_space_left(ring) < MAX_SQE_PER_LOOP) break;
-
-			/* no remaining work in completion queue */
-			if (io_uring_peek_cqe(ring, &cqe) == -EAGAIN) break;
+	/*
+	 * this infinite loop is necessary for the thread to continuously waiting for new tasks.
+	 */
+	while (1)
+	{
+		struct msghdr *message;
+		result = get_new_task(ring, cqe, &wait_is_necessary, message);
+		if (result != 0)
+		{
+			return result;
 		}
 
-		submit:
+		switch (GET_EVENT_TYPE(message))
+		{
+			case READ:
+			{
+				int result = handle_read(server, message, cqe->result);
+				switch (result)
+				{
+					case RESPOND: prepare_write(ring, server->socket, &submissions, message);
+						break;
+					case RETRY: prepare_read(ring, server->socket, &submissions, message);
+						break;
+					default: return_buffer(message);
+						return result;
+				}
+				result = prepare_read(ring, server->socket, &submissions);
+				if (result != 0) return result;
+				break;
+			}
+			case WRITE:
+			{
+				int result = handle_write_result(server, message, cqe->result);
+				switch (result)
+				{
+					case RETRY: result = prepare_write(ring, server->socket, &submissions, message);
+						if (result != 0) return result;
+						break;
+					default: return_buffer(message);
+						break;
+				}
+				break;
+			}
+			default: perror("Unexpected request type");
+				break;
+		}
 
-		/* submits the prepared io operations to the queue if any requests registered */
-		if (submissions > 0)
-			io_uring_submit(ring);
+		result = finish_task(&wait_is_necessary);
+		if (result != 0)
+		{
+			return result;
+		}
 	}
-	io_uring_queue_exit(ring);
-	return 0;
 }
