@@ -10,7 +10,7 @@ int check_fd(int fd)
 	if (flags == -1)
 	{
 		perror("invalid file descriptor");
-		return -1; // Invalid file descriptor
+		return -1;
 	}
-	return 0; // Valid file descriptor
+	return 0;
 }

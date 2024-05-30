@@ -6,8 +6,15 @@
 
 int initialize_database()
 {
+	start_step("Configure database");
 
-	return 0;
+	int res = 0;
+	if (res != 0)
+	{
+		return end_step("Failed to configure database", res);
+	}
+
+	return end_step("Database configured", 0);
 }
 
 int get()

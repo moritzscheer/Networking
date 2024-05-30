@@ -4,6 +4,7 @@
 #define _STATUS_H_
 
 #define MAX_TRIES       3
+#define INVALID_ARG     -1000
 
 /* Error codes related to buffer */
 

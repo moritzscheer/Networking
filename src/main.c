@@ -3,25 +3,26 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
+#include <string.h>
 
 #include "./core/resources.h"
 #include "./core/loop.h"
 #include "./includes/server.h"
-#include "includes/status.h"
+#include "./utils/print.h"
 
 int main()
 {
-	Server *server;
-	res = EXIT_SUCCESS;
+	Server *server = NULL;
 
-	res = initialize_resources(server);
+	int res = initialize_resources(server);
 	if (res < 0)
 	{
-		cleanup_resources(server);
-		return res;
+		return print_status_code(res);
 	}
 
 	res = server_loop(server);
+	
 	cleanup_resources(server);
-	return res;
+
+	return print_status_code(res);
 }

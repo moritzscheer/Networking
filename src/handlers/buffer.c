@@ -21,7 +21,7 @@ extern int create_buffer_pool(void)
 		if (buffer == NULL)
 		{
 			destroy_buffer_pool();
-			return errno;
+			return ENOMEM;
 		}
 		buffers[buffer_index] = buffer;
 		buffer_index++;
@@ -29,14 +29,15 @@ extern int create_buffer_pool(void)
 	return 0;
 }
 
-extern struct msghdr *get_buffer(void)
+extern int get_buffer(struct msghdr *message)
 {
 	if (buffer_index > 0)
 	{
 		buffer_index--;
-		return buffers[buffer_index];
+		message = buffers[buffer_index];
+		return 0;
 	}
-	return NULL;
+	return NO_FREE_BUF;
 }
 
 void set_event_type(struct msghdr *msghdr, type)

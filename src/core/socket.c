@@ -10,7 +10,26 @@
 #include "socket.h"
 #include "../../config/server_conf.h"
 
-int initialize_socket(int *server_socket)
+int initialize_connection(int *server_socket, ngtcp2_settings settings)
+{
+	start_step("Establish server connection");
+
+	int res = create_and_bind_socket(server_socket);
+	if (res != 0)
+	{
+		return end_step("Failed to establish server connection", res);
+	}
+
+	res = setup_ngtcp2_settings(settings);
+	if (res != 0)
+	{
+		return end_step("Failed to establish server connection", res);
+	}
+
+	return end_step("Server connection established", 0);
+}
+
+int create_and_bind_socket(int *server_socket)
 {
 	struct sockaddr_in server_address;
 
@@ -48,5 +67,10 @@ int initialize_socket(int *server_socket)
 		return errno;
 	}
 
+	return 0;
+}
+
+int setup_ngtcp2_server(ngtcp2_settings settings)
+{
 	return 0;
 }

@@ -14,57 +14,41 @@
 
 int handle_write_result(server *server, message *message, int result)
 {
-	if (result == -1)
+	if (result < 0)
 	{
-		switch (errno)
+		switch (result)
 		{
-			case: EAGAIN || EWOULDBLOCK
+			case: -EAGAIN || -EWOULDBLOCK
 				return RETRY;
-			case: EBADF
-			{
-			}
-			case: EFAULT
-			{
-			}
-			case: EINVAL
-			{
-			}
-			case: EIO
-			{
-			}
-			case: ENOSPC
-			{
-			}
-			case: ENOMEM
-			{
-				return -1;
-			}
-			default: return
+			case: -EBADF
+				return RETRY;
+			case: -EFAULT
+				return RETRY;
+			case: -EINVAL
+				return RETRY;
+			case: -EIO
+				return RETRY;
+			case: -ENOSPC
+				return RETRY;
+			case: -ENOMEM
+				return DROP;
+			default:
+				return DROP;
 		}
 	}
 	return DONT_RETRY;
 }
 
-int prepare_write(io_uring *ring, int socket, int *submissions, msghdr *message)
+int prepare_write(io_uring *ring, int socket, msghdr *message)
 {
-	if (message == NULL)
-	{
-		int result = get_buffer(message);
-		if (result != 0)
-		{
-			return result;
-		}
-	}
-
 	struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
 	if (sqe == NULL)
 	{
-		io_uring_submit(ring);
 		return SQ_FULL;
 	}
 
 	set_event_type(message, WRITE);
-	(*submissions)++;
+
 	io_uring_prep_sendmsg(sqe, socket, message, 0);
 	io_uring_sqe_set_data(sqe, message);
 	return 0;

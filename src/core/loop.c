@@ -12,8 +12,7 @@
 #include "../handlers/read.h"
 #include "../handlers/write.h"
 #include "../handlers/buffer.h"
-#include "../includes/server.h" -
-#include "../includes/message.h"
+#include "../includes/server.h"
 #include "../includes/status.h"
 
 static struct io_uring *ring;
@@ -21,98 +20,149 @@ static struct io_uring_cqe *cqe;
 
 void server_loop(Server *server)
 {
-	int result;
-
-	result = io_uring_queue_init(QUEUE_DEPTH, ring, 0);
-	if (result != 0)
+	int res = io_uring_queue_init(QUEUE_DEPTH, ring, 0);
+	if (res != 0)
 	{
-		perror("Could not initialize io_uring queue.");
-		return result;
+		return errno;
 	}
 
-	result = prepare_read(ring, server->socket);
-	if (result != 0)
+	res = create_threads(thread_function, server);
+	if (res != 0)
 	{
 		io_uring_queue_exit(ring);
-		return result;
+		return res;
+	}
+
+	res = prepare_read(ring, server->socket);
+	if (res != 0)
+	{
+		io_uring_queue_exit(ring);
+		return res;
 	}
 
 	while (1)
 	{
-		result = io_uring_wait_cqe(ring, &cqe);
-		if (result != 0)
+		res = io_uring_wait_cqe(ring, &cqe);
+		if (res != 0)
 		{
-			perror("waiting for completion");
-			break;
+			io_uring_queue_exit(ring);
+			return res;
 		}
 
-		result = start_handling_tasks();
-		if (result != 0)
+		res = signal_ready_thread();
+		if (res != 0)
 		{
-			break;
+			continue;
+		}
+
+		res = wait_for_thread_signal();
+		if (res != 0)
+		{
+			io_uring_queue_exit(ring);
+			return res;
 		}
 	}
-
-	io_uring_queue_exit(ring);
-	return result;
 }
 
-void *thread_function()
+void *thread_function(Server *server)
 {
-	bool wait_is_necessary = true;
-	int result = 0;
+	bool waiting_required = true;
+	struct msghdr *message;
+	int io_result, res, event_type;
 
-	/*
-	 * this infinite loop is necessary for the thread to continuously waiting for new tasks.
-	 */
+	/* Infinite loop for continues packet handling */
 	while (1)
 	{
-		struct msghdr *message;
-		result = get_new_task(ring, cqe, &wait_is_necessary, message);
-		if (result != 0)
+		/* fetches return data from Completion Queue and waits if necessary */
+		int res = fetch_message(ring, cqe, &waiting_required, message, &io_result, &event_type);
+		if (res != 0)
 		{
-			return result;
+			pthread_exit(&res);
 		}
 
-		switch (GET_EVENT_TYPE(message))
+		switch (event_type)
 		{
 			case READ:
 			{
-				int result = handle_read(server, message, cqe->result);
-				switch (result)
+				READ_START:
+
+				res = resolve_read(server, message, io_result);
+				switch (res)
 				{
-					case RESPOND: prepare_write(ring, server->socket, &submissions, message);
+					case RESPOND:
+					{
+						res = prepare_write(ring, server->socket, message);
+						if (res == SQ_FULL)
+						{
+							io_uring_submit(ring);
+							goto READ_START;
+						}
 						break;
-					case RETRY: prepare_read(ring, server->socket, &submissions, message);
+					}
+					case RETRY:
+					{
+						goto READ_START;
+					}
+					case DROP:
+					{
+						return_buffer(message);
 						break;
-					default: return_buffer(message);
-						return result;
+					}
+					case WAIT:
+					{
+						sleep(1);
+						break;
+					}
 				}
-				result = prepare_read(ring, server->socket, &submissions);
-				if (result != 0) return result;
+
+				res = prepare_read(ring, server->socket);
+				if (res == SQ_FULL || res == NO_FREE_BUF)
+				{
+					if (res == SQ_FULL)
+					{
+						io_uring_submit(ring);
+					}
+					goto READ_START;
+				}
+
 				break;
 			}
 			case WRITE:
 			{
-				int result = handle_write_result(server, message, cqe->result);
-				switch (result)
+				WRITE_START:
+
+				res = resolve_write(server, message, io_result);
+				switch (res)
 				{
-					case RETRY: result = prepare_write(ring, server->socket, &submissions, message);
-						if (result != 0) return result;
+					case RETRY:
+					{
+						goto WRITE_START;
+					}
+					case DROP:
+					{
+						return_buffer(message);
 						break;
-					default: return_buffer(message);
+					}
+					case WAIT:
+					{
+						sleep(1);
 						break;
+					}
 				}
+
 				break;
 			}
-			default: perror("Unexpected request type");
+			default:
+			{
+				perror("Unexpected message type");
 				break;
+			}
 		}
 
-		result = finish_task(&wait_is_necessary);
-		if (result != 0)
+		res = finish_task(&waiting_required);
+		if (res != 0)
 		{
-			return result;
+			pthread_exit(&res);
 		}
 	}
 }
