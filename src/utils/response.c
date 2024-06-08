@@ -1,10 +1,17 @@
 // Copyright (C) 2024, Moritz Scheer
 
-int Stream::send_status_response(unsigned int status_code) {
+#include <ngtcp2/ngtcp2.h>
+
+int create_version_negotiation_response()
+{
+	ngtcp2_ssize res = ngtcp2_pkt_write_version_negotiation();
+}
+
+int send_status_response(unsigned int status_code)
+{
 	status_resp_body = make_status_body(status_code);
 
-	respbuf.begin = respbuf.pos =
-		reinterpret_cast<uint8_t *>(status_resp_body.data());
+	respbuf.begin = respbuf.pos = reinterpret_cast<uint8_t * >(status_resp_body.data());
 	respbuf.end = respbuf.last = respbuf.begin + status_resp_body.size();
 
 	handler->add_sendq(this);
@@ -13,7 +20,8 @@ int Stream::send_status_response(unsigned int status_code) {
 	return 0;
 }
 
-char *make_status_body(unsigned int status_code) {
+char *make_status_body(unsigned int status_code)
+{
 	auto status_string = util::format_uint(status_code);
 	auto reason_phrase = http::get_reason_phrase(status_code);
 

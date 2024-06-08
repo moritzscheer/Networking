@@ -11,12 +11,14 @@ typedef struct Server
 	size_t local_addrlen;
 
 	Connection *connections;
-	Bufferpool *buffers;
 
 	pthread_t threads[NUM_THREADS];
 
-	ngtcp2_settings settings;
-	ngtcp2_cid scid;
+	struct io_uring *ring;
+	struct io_uring_cqe *cqe;
+
+	ngtcp2_settings *settings;
+	ngtcp2_cid *scid;
 } Server;
 
 #endif //_SERVER_H_

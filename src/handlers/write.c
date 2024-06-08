@@ -7,49 +7,83 @@
 
 #include "write.h"
 #include "../handlers/parser.h"
-#include "../handlers/buffer.h"
+#include "../core/buffer.h"
+#include "../core/threads.h"
 #include "../includes/message.h"
 #include "../includes/status.h"
 #include "../includes/server.h"
 
-int handle_write_result(server *server, message *message, int result)
+int prepare_write(io_uring *ring, int socket, struct msghdr *message)
 {
-	if (result < 0)
+	/* Gets the Submission Queue and submits it, if the queue is full */
+	struct io_uring_sqe *sqe;
+	while (1)
 	{
-		switch (result)
+		sqe = io_uring_get_sqe(ring);
+		if (sqe != NULL)
 		{
-			case: -EAGAIN || -EWOULDBLOCK
-				return RETRY;
-			case: -EBADF
-				return RETRY;
-			case: -EFAULT
-				return RETRY;
-			case: -EINVAL
-				return RETRY;
-			case: -EIO
-				return RETRY;
-			case: -ENOSPC
-				return RETRY;
-			case: -ENOMEM
-				return DROP;
-			default:
-				return DROP;
+			break;
 		}
-	}
-	return DONT_RETRY;
-}
 
-int prepare_write(io_uring *ring, int socket, msghdr *message)
-{
-	struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
-	if (sqe == NULL)
+		io_uring_submit(ring);
+		usleep(1000);
+	}
+
+	/* Get ancillary data from message struct and handles them */
+	uint8_t tries = GET_TRIES(message);
+	if (tries == 0)
 	{
-		return SQ_FULL;
+		uint8_t event_type = GET_EVENT_TYPE(message);
+		event_type = WRITE;
 	}
-
-	set_event_type(message, WRITE);
+	tries++;
 
 	io_uring_prep_sendmsg(sqe, socket, message, 0);
 	io_uring_sqe_set_data(sqe, message);
 	return 0;
+}
+
+int resolve_write(server *server, message *message, int result)
+{
+	if (result >= 0)
+	{
+		result = parse_packet(server, message);
+	}
+
+	// resolve read error code
+	switch (result)
+	{
+		case -EAGAIN || -EWOULDBLOCK:
+		{
+			return RETRY;
+		}
+		case -EBADF:
+		{
+			return RETRY;
+		}
+		case -EFAULT:
+		{
+			return RETRY;
+		}
+		case -EINVAL:
+		{
+			return RETRY;
+		}
+		case -EIO:
+		{
+			return RETRY;
+		}
+		case -ENOSPC:
+		{
+			return RETRY;
+		}
+		case -ENOMEM:
+		{
+			return DROP;
+		}
+		default:
+		{
+			return DROP;
+		}
+	}
 }

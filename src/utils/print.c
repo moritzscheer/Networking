@@ -2,12 +2,12 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <stdarg.h>
 
 void start_step(char *message)
 {
 	if (step == FIRST_STEP)
 	{
-
 		printf("-----------------------------------------------\n");
 		printf("      Project configuration steps [0/%i]       \n", LAST_STEP);
 		printf("-----------------------------------------------\n\n");
@@ -16,7 +16,6 @@ void start_step(char *message)
 	fflush(stdout);
 }
 
-// Update the step message with the result status
 int end_step(char *message, int status_code)
 {
 	char *symbol = status_code == 0 ? SUCCESS_SYMBOL : ERROR_SYMBOL;

@@ -22,7 +22,8 @@ Connection create_connection(SSL session, int socket_fd);
 void close_connection();
 void free_connection();
 int read_connection();
-int write connection();
-Connection *find_connection(Connection* connections, uint8_t *dcid, size_t dcid_size);
+int write
+connection();
+Connection *find_connection(Connection *connections, uint8_t *dcid, size_t dcid_size);
 
 #endif //_CONNECTION_H_

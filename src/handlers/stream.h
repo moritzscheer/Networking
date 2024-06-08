@@ -3,7 +3,8 @@
 #ifndef _STREAM_H_
 #define _STREAM_H_
 
-typedef struct {
+typedef struct
+{
 	int64_t id;
 	GQueue *buffer;
 	/* invariant: sent_offset >= acked_offset */
@@ -11,6 +12,12 @@ typedef struct {
 	size_t acked_offset;
 	UT_hash_handle hh;
 } Stream;
+
+typedef struct Queue
+{
+	QueueNode *head;
+	QueueNode *tail;
+} Queue;
 
 Stream *create_stream(int64_t id);
 void close_stream();

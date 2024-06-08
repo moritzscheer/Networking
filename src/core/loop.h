@@ -4,11 +4,13 @@
 #define _LOOP_H_
 
 #define QUEUE_DEPTH 60
-#define MAIN_SERVER_LOOP 1
-#define REQUESTS_IN_QUEUE 1
 
-typedef void *(*ThreadFunction)(Server *server);
+void server_loop(server *server);
 
-void server_loop(server *server)
+typedef void *(*WorkerFunction)(Server *server);
+
+static int fetch_message(io_uring *ring, io_uring_cqe *cqe, msghdr *message, int *io_result);
+
+static int finish_message();
 
 #endif //_LOOP_H_

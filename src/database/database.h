@@ -3,7 +3,6 @@
 #ifndef _DATABASE_H_
 #define _DATABASE_H_
 
-
 int initialize_database()
 int get()
 int add()

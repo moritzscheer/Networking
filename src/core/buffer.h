@@ -15,7 +15,6 @@
 #define CMSG_NUM                1
 #define IOV_NUM                 2
 #define IOV_LEN                 69931
-
 #define MSGHDR_LEN              (sizeof(struct msghdr))
 #define MSGHDR_START(start)     ((struct msghdr *) start)
 
@@ -28,6 +27,10 @@
 #define IOV_BASE_LEN            (IOV_NUM * IOV_LEN)
 #define IOV_BASE_START(start)   ((void *) (start + MSGHDR_LEN + CMSGHDR_LEN + IOVEC_LEN))
 
+#define BUFFER_SIZE_TOTAL       MSGHDR_LEN + CMSGHDR_LEN + IOVEC_LEN + IOV_BASE_LEN
+#define GET_EVENT_TYPE(start)   ((uint8_t *) CMSG_DATA(CMSG_FIRSTHDR(((void *) start))))
+#define GET_TRIES(start)        ((uint8_t *) CMSG_DATA(CMSG_FIRSTHDR(((void *) start))) + sizeof(uint8_t))
+
 /* ----------------------------------------------- */
 /* Macro functions with variable number of structs */
 /* ----------------------------------------------- */
@@ -37,11 +40,8 @@
 #define IOVEC_LEN_NUM(num)                  (num * sizeof(struct iovec))
 #define IOVEC_START_NUM(start, cmsg_num)    ((struct iovec *) (start + MSGHDR_LEN + CMSGHDR_LEN_NUM(cmsg_num)))
 
-#define GET_EVENT_TYPE(start)               ((uint8_t *) CMSG_DATA(CMSG_FIRSTHDR(((void *) start))))
-
-#define GET_TRIES(start)                    ((uint8_t *) CMSG_DATA(CMSG_FIRSTHDR(((void *) start))) + sizeof(uint8_t))
-
-typedef struct {
+typedef struct
+{
 	uint8_t event_type;
 	uint8_t tries;
 } Extra_Data;
