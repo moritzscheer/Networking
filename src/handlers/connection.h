@@ -3,19 +3,27 @@
 #ifndef _CONNECTION_H_
 #define _CONNECTION_H_
 
-typedef struct
+typedef struct Connection
 {
-	int64_t id;
+	/* Unique identifier for the connection */
+	ngtcp2_cid *cid;
+
+	/* SSL session associated with the connection */
 	SSL session;
+
+	/* Path information for the connection */
+	ngtcp2_path path;
+
+	/* Pointer to the QUIC connection object */
 	ngtcp2_conn *conn;
-	int socket_fd;
+
+	/* Timer file descriptor for managing timeouts */
 	int timer_fd;
+
+	/* Hash table of active streams associated with the connection */
 	Stream *streams;
-	struct sockaddr_storage local_addr;
-	size_t local_addrlen;
-	struct sockaddr_storage remote_addr;
-	size_t remote_addrlen;
 	UT_hash_handle hh;
+
 } Connection;
 
 Connection create_connection(SSL session, int socket_fd);
