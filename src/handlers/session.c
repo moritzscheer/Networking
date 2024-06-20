@@ -1,14 +1,16 @@
 // Copyright (C) 2024 Moritz Scheer
 
-int configure_session()
-{
-	start_step("Configure session");
+#include "session.h"
+#include "../includes/server.h"
 
+int initialize_session(struct server *server)
+{
 	int res = 0;
+
 	if (res != 0)
 	{
-		return end_step("Failed to configure session", res);
+		return res;
 	}
 
-	return end_step("Session configured", 0);
+	return res;
 }

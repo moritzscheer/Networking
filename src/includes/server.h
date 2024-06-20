@@ -3,20 +3,22 @@
 #ifndef _SERVER_H_
 #define _SERVER_H_
 
-typedef struct Server
+struct server
 {
+	/* Socket descriptor for the server */
 	int socket;
 
+	/* Local address information */
 	struct sockaddr_storage local_addr;
 	size_t local_addrlen;
 
-	Connection *connections;
-	Bufferpool *buffers;
+	/* Hash table of active connections */
+	struct connection *connections;
+	UT_hash_handle hh;
 
-	pthread_t threads[NUM_THREADS];
-
-	ngtcp2_settings settings;
-	ngtcp2_cid scid;
-} Server;
+	/* QUIC settings and connection ID (CID) */
+	ngtcp2_settings *settings;
+	ngtcp2_cid *scid;
+};
 
 #endif //_SERVER_H_

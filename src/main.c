@@ -1,28 +1,20 @@
 // Copyright (C) 2024 Moritz Scheer
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <errno.h>
-#include <string.h>
-
 #include "./core/resources.h"
-#include "./core/loop.h"
+#include "./core/worker.h"
 #include "./includes/server.h"
 #include "./utils/print.h"
 
-int main()
+int main(void)
 {
-	Server *server = NULL;
+	struct server *server = {0};
 
-	int res = initialize_resources(server);
-	if (res < 0)
+	int status_code = initialize_resources(server);
+	if (status_code == 0)
 	{
-		return print_status_code(res);
+		status_code = server_loop(server);
 	}
 
-	res = server_loop(server);
-	
-	cleanup_resources(server);
-
-	return print_status_code(res);
+	handle_shutdown(server);
+	return print_status_code(status_code);
 }

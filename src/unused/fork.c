@@ -5,7 +5,8 @@ int fork(void)
 {
 	switch (fork())
 	{
-		case -1: err(EX_OSERR, "fork");
+		case -1:
+			err(EX_OSERR, "fork");
 		case 0:
 			// child process
 			break;
@@ -13,5 +14,4 @@ int fork(void)
 			// parent processs
 			break;
 	}
-
 }
