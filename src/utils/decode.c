@@ -2,7 +2,7 @@
 
 #include "response.h"
 
-int parse_packet(Connection *connections, struct msghdr *msghdr)
+int parse_packet(struct connection *connections, struct msghdr *msghdr)
 {
 	int res;
 
@@ -30,7 +30,7 @@ int parse_packet(Connection *connections, struct msghdr *msghdr)
 			}
 		}
 
-		Connection *connection = find_connection(connections, dcid, dcidlen);
+		struct connection *connection = find_connection(connections, dcid, dcidlen);
 		if (!connection)
 		{
 			connection = create_connection(connections);
@@ -77,3 +77,4 @@ int parse_packet(Connection *connections, struct msghdr *msghdr)
 		}
 	}
 }
+

@@ -3,7 +3,7 @@
 #ifndef _SERVER_H_
 #define _SERVER_H_
 
-typedef struct Server
+struct server
 {
 	/* Socket descriptor for the server */
 	int socket;
@@ -12,17 +12,13 @@ typedef struct Server
 	struct sockaddr_storage local_addr;
 	size_t local_addrlen;
 
-	/* Array of worker threads */
-	pthread_t threads[NUM_THREADS];
-
-	/* I/O ring for asynchronous I/O operations */
-	struct io_uring *ring;
-	struct io_uring_cqe *cqe;
+	/* Hash table of active connections */
+	struct connection *connections;
+	UT_hash_handle hh;
 
 	/* QUIC settings and connection ID (CID) */
 	ngtcp2_settings *settings;
 	ngtcp2_cid *scid;
-
-} Server;
+};
 
 #endif //_SERVER_H_

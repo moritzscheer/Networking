@@ -1,13 +1,13 @@
 // Copyright (C) 2024 Moritz Scheer
 
 #include "./core/resources.h"
-#include "./core/loop.h"
+#include "./core/worker.h"
 #include "./includes/server.h"
 #include "./utils/print.h"
 
 int main(void)
 {
-	Server *server = {0};
+	struct server *server = {0};
 
 	int status_code = initialize_resources(server);
 	if (status_code == 0)

@@ -6,10 +6,10 @@
 #include <sys/socket.h>
 
 #include "buffer.h"
-#include "threads.h"
+#include "../core/threads.h"
 #include "../../lib/uthash/utstack.h"
 #include "../includes/server.h"
-#include "network.h"
+#include "../core/network.h"
 
 static pthread_cond_t cond_buf_empty;
 static bool buf_empty = false;
@@ -121,4 +121,50 @@ static void reset_buffer(struct msghdr *msghdr)
 		memset(CMSGHDR_START(msghdr), 0, CMSGHDR_LEN);
 		memset(IOV_BASE_START(msghdr), 0, IOV_BASE_LEN);
 	}
+}
+
+static int setup_buffer_pool(struct ctx *ctx)
+{
+	int res, I;
+	void *mapped;
+	struct io_uring_buf_reg reg =
+		{
+			.ring_addr = 0,
+			.ring_entries = BUFFERS,
+			.bgid = 0
+		};
+
+	ctx->buf_ring_size = (sizeof(struct io_uring_buf) + buffer_size(ctx)) * BUFFERS;
+	mapped = mmap(NULL, ctx->buf_ring_size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
+	if (mapped == MAP_FAILED)
+	{
+		return -1;
+	}
+	ctx->buf_ring = (struct io_uring_buf_ring *) mapped;
+
+	io_uring_buf_ring_init(ctx->buf_ring);
+
+	reg = (struct io_uring_buf_reg)
+		{
+			.ring_addr = (unsigned long) ctx->buf_ring,
+			.ring_entries = BUFFERS,
+			.bgid = 0
+		};
+	ctx->buffer_base = (unsigned char *) ctx->buf_ring +
+	                   sizeof(struct io_uring_buf) * BUFFERS;
+
+	res = io_uring_register_buf_ring(ring, &reg, 0);
+	if (res)
+	{
+		return res;
+	}
+
+	for (I = 0; I < BUFFERS; I++)
+	{
+		io_uring_buf_ring_add(ctx->buf_ring, get_buffer(ctx, I), buffer_size(ctx), I,
+		                      io_uring_buf_ring_mask(BUFFERS), I);
+	}
+	io_uring_buf_ring_advance(ctx->buf_ring, BUFFERS);
+
+	return 0;
 }

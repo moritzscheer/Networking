@@ -3,7 +3,7 @@
 #include "session.h"
 #include "../includes/server.h"
 
-int initialize_session(Server *server)
+int initialize_session(struct server *server)
 {
 	int res = 0;
 

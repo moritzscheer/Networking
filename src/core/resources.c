@@ -8,7 +8,7 @@
 #include "../utils/print.h"
 #include "../utils/retry.h"
 
-int initialize_resources(Server *server)
+int initialize_resources(struct server *server)
 {
 	int res;
 
@@ -70,7 +70,7 @@ int initialize_resources(Server *server)
 	return res;
 }
 
-void handle_shutdown(Server *server)
+void handle_shutdown(struct server *server)
 {
 	/* tries to close file descriptor 3 times */
 	retry(close, server->socket);
@@ -78,4 +78,50 @@ void handle_shutdown(Server *server)
 	retry(backup_database, server);
 
 	return free(server);
+}
+
+static void set_cpu_affinity(void)
+{
+	cpu_set_t mask;
+
+	if (cfg_cpu == -1)
+	{
+		return;
+	}
+
+	CPU_ZERO(&mask);
+	CPU_SET(cfg_cpu, &mask);
+	if (sched_setaffinity(0, sizeof(mask), &mask))
+	{
+		t_error(1, errno, "unable to pin cpu\n");
+	}
+}
+
+static void sigint_handler(__attribute__((__unused__)) int sig)
+{
+	/* kill if should_stop can't unblock threads fast enough */
+	if (should_stop)
+	{
+		_exit(-1);
+	}
+	should_stop = true;
+}
+
+static void set_iowq_affinity(struct io_uring *ring)
+{
+	cpu_set_t mask;
+	int ret;
+
+	if (cfg_cpu == -1)
+	{
+		return;
+	}
+
+	CPU_ZERO(&mask);
+	CPU_SET(cfg_cpu, &mask);
+	ret = io_uring_register_iowq_aff(ring, 1, &mask);
+	if (ret)
+	{
+		t_error(1, ret, "unabled to set io-wq affinity\n");
+	}
 }

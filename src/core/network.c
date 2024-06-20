@@ -13,12 +13,12 @@
 #include "network.h"
 #include "../includes/server.h"
 
-int initialize_connection(Server *server)
+int initialize_connection(struct server *server)
 {
 	int res;
 	start_step("Establish server connection");
 
-	res = create_and_bind_socket(server->socket);
+	res = setup_listening_socket(server->socket);
 	if (res != 0)
 	{
 		return end_step("Failed to establish server connection", res);
@@ -39,7 +39,7 @@ int initialize_connection(Server *server)
 	return end_step("Server connection established", 0);
 }
 
-int create_and_bind_socket(int *server_socket)
+int setup_listening_socket(int *server_socket)
 {
 	struct sockaddr_in server_address;
 
@@ -80,7 +80,7 @@ int create_and_bind_socket(int *server_socket)
 	return 0;
 }
 
-int setup_ngtcp2_server(ngtcp2_settings settings)
+int setup_ngtcp2_setting(ngtcp2_settings settings)
 {
 	ngtcp2_settings_default(&server.settings);
 	server.settings.initial_ts = timestamp();

@@ -2,7 +2,9 @@
 
 #include "connection.h"
 
-Connection *create_connection(SSL session, int socket_fd)
+pthread_mutex_t conn_mutex;
+
+struct connection *create_connection(SSL session, int socket_fd)
 {
 	ngtcp2_pkt_hd header;
 	if (ngtcp2_accept(&header, data, data_size) < 0)
@@ -10,7 +12,7 @@ Connection *create_connection(SSL session, int socket_fd)
 		return NULL;
 	}
 
-	Connection connection = calloc(1, sizeof(Connection));
+	struct connection connection = (struct connection *) calloc(1, sizeof(struct connection));
 	if(!connection)
 	{
 		return NULL;
@@ -85,9 +87,9 @@ int write_connection()
 
 }
 
-Connection *find_connection(Connection *connections, uint8_t *dcid, size_t dcid_size)
+struct connection *find_connection(struct connection *connections, uint8_t *dcid, size_t dcid_size)
 {
-	Connection *connection;
+	struct connection *connection;
 
 	for (connection = connections; connection != NULL; connection = connection->hh.next)
 	{
@@ -113,7 +115,7 @@ Connection *find_connection(Connection *connections, uint8_t *dcid, size_t dcid_
 	return NULL;
 }
 
-void connection_add_stream(Connection *connection, Stream *stream)
+void connection_add_stream(struct connection *connection, Stream *stream)
 {
 	for(int I = 0; I < connection->streamslen; I++)
 	{
@@ -121,7 +123,7 @@ void connection_add_stream(Connection *connection, Stream *stream)
 	}
 }
 
-void connection_remove_stream(Connection *connection, Stream *stream)
+void connection_remove_stream(struct connection *connection, Stream *stream)
 {
 
 }

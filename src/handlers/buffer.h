@@ -42,7 +42,7 @@
 
 typedef struct
 {
-	uint8_t event_type;
+	struct connection *connection;
 	uint8_t tries;
 } Extra_Data;
 

@@ -7,11 +7,11 @@
 #include <stdlib.h>
 
 #include "threads.h"
-#include "loop.h"
+#include "worker.h"
 #include "../includes/status.h"
 #include "../includes/server.h"
 
-int initialize_threads(Server *server)
+int initialize_threads(struct server *server)
 {
 	int res;
 

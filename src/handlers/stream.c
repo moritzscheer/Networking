@@ -37,13 +37,13 @@ int stream_open_cb(ngtcp2_conn *conn, int64_t stream_id, void *user_data)
 	stream->acked_offset = 0;
 	stream->sent_offset = 0;
 
-	HASH_ADD_INT((Connection *) user_data, stream->id, stream);
+	HASH_ADD_INT((struct connection *) user_data, stream->id, stream);
 	return 0;
 }
 
 int stream_close_cb(ngtcp2_conn *conn, int64_t stream_id, void *user_data)
 {
-	Connection *connection = (Connection *) user_data;
+	struct connection *connection = (struct connection *) user_data;
 
 	Stream *stream = find_stream(connection, stream_id);
 	if (!stream)
@@ -63,7 +63,7 @@ int stream_close_cb(ngtcp2_conn *conn, int64_t stream_id, void *user_data)
 int recv_stream_data_cb(ngtcp2_conn *conn, uint32_t flags, int64_t stream_id, uint64_t offset,
                         const uint8_t *data, size_t datalen, void *user_data, void *stream_user_data)
 {
-	Connection *connection = (Connection *) user_data;
+	struct connection *connection = (struct connection *) user_data;
 
 	Stream *stream = find_stream(connection, stream_id);
 	if (stream)
@@ -76,7 +76,7 @@ int recv_stream_data_cb(ngtcp2_conn *conn, uint32_t flags, int64_t stream_id, ui
 int acked_stream_data_offset_cb(ngtcp2_conn *conn, int64_t stream_id, uint64_t offset, uint64_t datalen,
                                 void *user_data, void *stream_user_data)
 {
-	Connection *connection = (Connection *) user_data;
+	struct connection *connection = (struct connection *) user_data;
 
 	Stream *stream = find_stream(connection, stream_id);
 	if (stream)
@@ -98,7 +98,7 @@ void stream_finish_data()
 
 }
 
-Stream *find_stream(Connection *connection, int64_t id)
+Stream *find_stream(struct connection *connection, int64_t id)
 {
 
 }
