@@ -3,16 +3,27 @@
 #ifndef _WORKER_H_
 #define _WORKER_H_
 
+
+/* -------------------------------------------- MACRO DECLARATIONS -------------------------------------------------- */
+
 #define QUEUE_DEPTH 60
 
-/*
- *
- */
-void server_loop(server *server);
+/* ------------------------------------------- STRUCT DECLARATIONS -------------------------------------------------- */
 
-/*
- *
- */
-typedef void *(*WorkerFunction)(struct server *server);
+
+
+/* --------------------------------------- GLOBAL VARIABLES DECLARATIONS -------------------------------------------- */
+
+
+
+/* ------------------------------------------- FUNCTION DECLARATIONS ------------------------------------------------ */
+
+typedef int *(*WorkerFunction)(struct server *server);
+
+static int handle_quic_events(struct pkt *packet);
+
+static int handle_http_events(struct pkt *packet);
+
+/* ------------------------------------------------------------------------------------------------------------------ */
 
 #endif //_WORKER_H_

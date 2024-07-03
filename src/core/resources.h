@@ -3,14 +3,24 @@
 #ifndef _RESOURCES_H_
 #define _RESOURCES_H_
 
-/*
- *
- */
-extern int initialize_resources(struct server *server);
+/* -------------------------------------------- MACRO DECLARATIONS -------------------------------------------------- */
 
-/*
- *
- */
-extern void handle_shutdown(struct server *server);
+
+
+/* ------------------------------------------- STRUCT DECLARATIONS -------------------------------------------------- */
+
+
+
+/* --------------------------------------- GLOBAL VARIABLES DECLARATIONS -------------------------------------------- */
+
+
+
+/* ------------------------------------------- FUNCTION DECLARATIONS ------------------------------------------------ */
+
+int initialize_resources(struct server *server);
+
+void handle_shutdown(struct server *server);
+
+/* ------------------------------------------------------------------------------------------------------------------ */
 
 #endif //_RESOURCES_H_

@@ -3,7 +3,13 @@
 #ifndef _STREAM_H_
 #define _STREAM_H_
 
-typedef struct Stream
+/* -------------------------------------------- MACRO DECLARATIONS -------------------------------------------------- */
+
+
+
+/* ------------------------------------------- STRUCT DECLARATIONS -------------------------------------------------- */
+
+struct Stream
 {
 	int64_t id;
 	Queue *data;
@@ -13,15 +19,20 @@ typedef struct Stream
 	size_t acked_offset;
 };
 
-typedef struct Queue
-{
-	struct iovec *head;
-	struct iovec *tail;
-} Queue;
+/* --------------------------------------- GLOBAL VARIABLES DECLARATIONS -------------------------------------------- */
+
+
+
+/* ------------------------------------------- FUNCTION DECLARATIONS ------------------------------------------------ */
 
 Stream *create_stream(int64_t id);
+
 void close_stream();
+
 int stream_push_data();
+
 void stream_finish_data();
+
+/* ------------------------------------------------------------------------------------------------------------------ */
 
 #endif //_STREAM_H_

@@ -1,7 +1,53 @@
 // Copyright (C) 2024 Moritz Scheer
 
-extern ngtcp2_callbacks callbacks = {
-    /* used callback function                   default callback functions */
+#ifndef _NGTCP2_H_
+#define _NGTCP2_H_
+
+/* -------------------------------------------- MACRO DECLARATIONS -------------------------------------------------- */
+
+/* settings macros */
+#define MAX_WINDOW 1
+#define MAX_STREAM_WINDOW 0
+#define HANDSHAKE_TIMEOUT UINT64_MAX 0
+#define NO_PMTUD 0
+#define ACK_THRESH 2
+#define MAX_TX_UDP_PAYLOAD_SIZE MAX_TX_UDP_PAYLOAD_SIZE
+#define NO_TX_UDP_PAYLOAD_SIZE_SHAPING 1
+#define MAX_STREAM_DATA_BIDI_LOCAL 256 * 1024 // 265 KB
+
+/* transport params macros */
+#define INITIAL_MAX_STREAM_DATA_BIDI_LOCAL 128 * 1024
+#define INITIAL_MAX_STREAM_DATA_BIDI_REMOTE = 128 * 1024
+#define INITIAL_MAX_STREAM_DATA_UNI
+#define INITIAL_MAX_DATA = 1024 * 1024
+#define INITIAL_MAX_STREAMS_BIDI 100
+#define INITIAL_MAX_STREAMS_UNI 50
+#define MAX_IDLE_TIMEOUT 0
+#define ACTIVE_CONNECTION_ID_LIMIT 7
+
+/* secret macros */
+#define SECRET_LEN 32
+#define TIMEOUT 3600 * NGTCP2_SECONDS
+
+/* ------------------------------------------- STRUCT DECLARATIONS -------------------------------------------------- */
+
+struct secret
+{
+	size_t datalen;
+	uint8_t *data;
+};
+
+/* --------------------------------------- GLOBAL VARIABLES DECLARATIONS -------------------------------------------- */
+
+static struct secret server_secret;
+
+static ngtcp2_settings default_settings;
+
+static ngtcp2_transport_params default_params;
+
+static ngtcp2_callbacks callbacks = {
+
+	/* used callback function                   default callback functions */
 	nullptr,                                    /* client_initial */
 	ngtcp2_crypto_recv_client_initial_cb,       /* recv_client_initial */
 	recv_crypto_data,                           /* recv_crypto_data */
@@ -44,7 +90,22 @@ extern ngtcp2_callbacks callbacks = {
 	nullptr                                     /* tls_early_data_rejected */
 }
 
+/* ------------------------------------------- FUNCTION DECLARATIONS ------------------------------------------------ */
 
+int setup_ngtcp2();
 
+int create_ngtcp2_conn(ngtcp2_cid cid, uint8_t *pkt, size_t pktlen,
+                       struct sockaddr_union remote_addr, size_t remote_addrlen);
 
+static int verify_token(ngtcp2_cid *dcid, ngtcp2_cid *original_dcid, ngtcp2_pkt_hd header,
+                        ngtcp2_token_type token_type);
 
+static inline int verify_retry_token(struct ngtcp2_cid *original_dcid, const struct ngtcp2_pkt_hd *header,
+                                     const struct sockaddr *sockaddr, socklen_t sockaddr_len);
+
+static inline int verify_token(const struct ngtcp2_pkt_hd *header,
+                               const struct sockaddr *sockaddr, socklen_t sockaddr_len);
+
+/* ------------------------------------------------------------------------------------------------------------------ */
+
+#endif //_NGTCP2_H_

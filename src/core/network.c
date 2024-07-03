@@ -11,7 +11,11 @@
 #include <liburing.h>
 
 #include "network.h"
+#include "../middleware/io_uring.h"
+#include "../middleware/ngtcp2.h"
+#include "../middleware/nghttp3.h"
 #include "../includes/server.h"
+#include "../utils/print.h"
 
 int initialize_connection(struct server *server)
 {
@@ -24,16 +28,16 @@ int initialize_connection(struct server *server)
 		return end_step("Failed to establish server connection", res);
 	}
 
-	res = io_uring_queue_init(QUEUE_DEPTH, server->ring, 0);
+	res = setup_ngtcp2();
 	if (res != 0)
 	{
-		return end_step("Failed to establish server connection", errno);
+		return end_step("Failed to setup ngtcp2 library", res);
 	}
 
-	res = setup_ngtcp2_settings(server->settings);
+	res = setup_nghttp3();
 	if (res != 0)
 	{
-		return end_step("Failed to establish server connection", res);
+		return end_step("Failed to setup nghttp3 library", res);
 	}
 
 	return end_step("Server connection established", 0);
@@ -76,15 +80,6 @@ int setup_listening_socket(int *server_socket)
 		close(*server_socket);
 		return errno;
 	}
-
-	return 0;
-}
-
-int setup_ngtcp2_setting(ngtcp2_settings settings)
-{
-	ngtcp2_settings_default(&server.settings);
-	server.settings.initial_ts = timestamp();
-	server.settings.log_printf = log_printf;
 
 	return 0;
 }

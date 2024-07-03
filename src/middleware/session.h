@@ -1,7 +1,7 @@
-// Copyright (C) 2024, Moritz Scheer
+// Copyright (C) 2024 Moritz Scheer
 
-#ifndef _ENCODE_H_
-#define _ENCODE_H_
+#ifndef _SESSION_H_
+#define _SESSION_H_
 
 /* -------------------------------------------- MACRO DECLARATIONS -------------------------------------------------- */
 
@@ -17,8 +17,8 @@
 
 /* ------------------------------------------- FUNCTION DECLARATIONS ------------------------------------------------ */
 
-
+int initialize_session(struct server *server);
 
 /* ------------------------------------------------------------------------------------------------------------------ */
 
-#endif //_ENCODE_H_
+#endif //_SESSION_H_

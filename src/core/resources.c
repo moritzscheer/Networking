@@ -3,7 +3,7 @@
 #include "resources.h"
 #include "network.h"
 #include "threads.h"
-#include "../handlers/session.h"
+#include "../middleware/session.h"
 #include "../includes/server.h"
 #include "../utils/print.h"
 #include "../utils/retry.h"

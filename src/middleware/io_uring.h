@@ -1,11 +1,16 @@
 // Copyright (C) 2024, Moritz Scheer
 
-#ifndef _ENCODE_H_
-#define _ENCODE_H_
+#ifndef _IO_URING_H_
+#define _IO_URING_H_
 
 /* -------------------------------------------- MACRO DECLARATIONS -------------------------------------------------- */
 
-
+#define BUFFER_LEN 4096
+#define QD 64
+#define BUF_SHIFT 12 /* 4k */
+#define CQES (QD * 16)
+#define BUFFERS CQES
+#define CONTROLLEN 0
 
 /* ------------------------------------------- STRUCT DECLARATIONS -------------------------------------------------- */
 
@@ -21,4 +26,4 @@
 
 /* ------------------------------------------------------------------------------------------------------------------ */
 
-#endif //_ENCODE_H_
+#endif //_IO_URING_H_

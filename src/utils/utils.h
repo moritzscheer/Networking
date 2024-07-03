@@ -1,7 +1,7 @@
-// Copyright (C) 2024, Moritz Scheer
+// Copyright (C) 2024 Moritz Scheer
 
-#ifndef _ENCODE_H_
-#define _ENCODE_H_
+#ifndef _UTILS_H_
+#define _UTILS_H_
 
 /* -------------------------------------------- MACRO DECLARATIONS -------------------------------------------------- */
 
@@ -21,4 +21,4 @@
 
 /* ------------------------------------------------------------------------------------------------------------------ */
 
-#endif //_ENCODE_H_
+#endif //_UTILS_H_

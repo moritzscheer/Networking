@@ -3,25 +3,22 @@
 #include <linux/io_uring.h>
 #include <liburing.h>
 #include <sys/socket.h>
+#include <string.h>
 
 #include "read.h"
+#include "../middleware/io_uring.h"
+#include "threads.h"
 #include "../includes/server.h"
-#include "../includes/packet.h"
+#include "../utils/packet.h"
 
 int listen_loop(struct server *server)
 {
-	int res, I, count;
+	int res, I, completions;
 
-	res = setup_context(ring, cqes, msg);
+	res = setup_ring(server->socket);
 	if (res != 0)
 	{
 		return res;
-	}
-
-	res = prepare_read(ring, server->socket);
-	if (res != 0)
-	{
-		return cleanup(res);
 	}
 
 	while (1)
@@ -33,89 +30,33 @@ int listen_loop(struct server *server)
 		}
 		else if (res < 0)
 		{
-			return cleanup(res);
+			return cleanup_ring(res);
 		}
 
-		/* Gets the amount of Completion events from the ring and loops over them. */
-		count = io_uring_peek_batch_cqe(ring, &cqes[0], CQES);
-		for (I = 0; I < count; I++)
+		completions = io_uring_peek_batch_cqe(ring, &cqes[0], CQES);
+		for (I = 0; I < completions; I++)
 		{
 			res = validate_cqe(cqes[I]);
 			if (res != 0)
 			{
-				return cleanup(res);
+				return cleanup_ring(res);
 			}
 		}
-		io_uring_cq_advance(ring, count);
+		io_uring_cq_advance(ring, completions);
 	}
 }
 
-int fetch_read_message(struct pkt *packet)
+static int prepare_sqe(int socket)
 {
-	pthread_mutex_lock(&read_mutex);
-
-	while (IsEmpty(new_conn_queue))
+	struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
+	if (!sqe)
 	{
-		res = pthread_cond_wait(&cond_fetch, &read_mutex);
-		if (res != 0)
+		io_uring_submit(ring);
+		sqe = io_uring_get_sqe(ring);
+		if (!sqe)
 		{
-			pthread_mutex_unlock(&read_mutex);
-			return res;
+			return -1;
 		}
-	}
-
-	Dequeue(new_conn_queue, packet);
-	Dequeue(all_conn_queue, packet);
-
-	pthread_mutex_unlock(&read_mutex);
-}
-
-static int setup_context(struct io_uring *ring, struct io_uring_cqe *cqe, struct msghdr *msg)
-{
-	struct io_uring_params params;
-	int res;
-
-	memset(&params, 0, sizeof(params));
-	params.cq_entries = QD * 8;
-	params.flags = IORING_SETUP_SUBMIT_ALL | IORING_SETUP_COOP_TASKRUN | IORING_SETUP_CQSIZE |
-	               IORING_SETUP_SINGLE_ISSUER;
-
-	res = io_uring_queue_init_params(QD, ring, &params);
-	if (res < 0)
-	{
-		return res;
-	}
-
-	res = setup_buffer_pool();
-	if (res)
-	{
-		io_uring_queue_exit(ring);
-	}
-
-	memset(msg, 0, sizeof(msg));
-	msg.msg_namelen = sizeof(struct sockaddr_storage);
-	msg.msg_controllen = CONTROLLEN;
-
-	res = io_uring_register_files(&ring, &sockfd, 1);
-	if (res)
-	{
-		return res;
-	}
-
-	return res;
-}
-
-static int cleanup(int result)
-{
-	return result;
-}
-
-static int prepare_read(io_uring *ring, int socket, struct msghdr *msg)
-{
-	struct io_uring_sqe *sqe;
-	if (get_sqe(ring, &sqe) == -1)
-	{
-		return -1;
 	}
 
 	io_uring_prep_recvmsg_multishot(sqe, socket, msg, MSG_TRUNC);
@@ -125,22 +66,6 @@ static int prepare_read(io_uring *ring, int socket, struct msghdr *msg)
 	sqe->buf_group = 0;
 
 	io_uring_sqe_set_data64(sqe, NULL);
-	return 0;
-}
-
-static inline int get_sqe(struct io_uring *ring, struct io_uring_sqe **sqe)
-{
-	*sqe = io_uring_get_sqe(ring);
-
-	if (!*sqe)
-	{
-		io_uring_submit(ring);
-		*sqe = io_uring_get_sqe(ring);
-	}
-	if (!*sqe)
-	{
-		return -1;
-	}
 	return 0;
 }
 
@@ -155,7 +80,7 @@ static inline int validate_cqe(struct io_uring_cqe *cqe)
 		}
 	}
 
-	/* If operation was not successful */
+	/* If operation was successful */
 	if (cqe->res >= 0 && (cqe->flags & IORING_CQE_F_BUFFER))
 	{
 		idx = cqe->flags >> 16;
@@ -177,53 +102,34 @@ static inline int validate_cqe(struct io_uring_cqe *cqe)
 			return -1;
 		}
 
-		return resolve_success(cqe->res);
+		return resolve_success();
 	}
 	return resolve_error(server, msg, cqe->res);
 }
 
-static inline int resolve_success(size_t buffer_length)
+static inline int resolve_success()
 {
-	ngtcp2_version_cid *cid;
+	ngtcp2_version_cid vcid;
 
-	struct pkt *packet = (struct pkt *)
-		{
-			.iov_base = io_uring_recvmsg_payload(msg_out, msg),
-			.iov_len = io_uring_recvmsg_payload_length(msg_out, buffer_length, msg)
-		}
-
-	/* decodes packet header and associates a connection to it */
-	switch (ngtcp2_pkt_decode_version_cid(cid, packet->iov_base, packet->iov_len, NGTCP2_MAX_CIDLEN))
+	switch (ngtcp2_pkt_decode_version_cid(&vcid, packet->iov_base, packet->iov_len, NGTCP2_MAX_CIDLEN))
 	{
 		case 0:
 		{
-			pthread_mutex_lock(&read_mutex);
+			struct pkt *packet = create_packet(msg_out, prev_pkt, vcid);
 
-			packet->connection = find_connection(cid);
-			if (!packet->connection)
+			struct connection connection = find_connection(packet->dcid);
+			if (!connection)
 			{
-				packet->connection = create_connection();
-				if (!packet->connection)
+				connection = create_connection(cid, sockaddr, sizeof(sockaddr));
+				if (!connection)
 				{
-					pthread_mutex_unlock(&read_mutex);
 					return NOMEM;
 				}
-
-				if (IsEmpty(new_conn_queue))
-				{
-					int res = send_signal(&cond_fetch);
-					if (res != 0)
-					{
-						return res;
-					}
-				}
-
-				Enqueue(new_conn_queue, packet);
 			}
-			Enqueue(all_conn_queue, packet);
 
-			pthread_mutex_unlock(&read_mutex);
-			return;
+			prev_pkt = packet;
+			enqueue_packet(pkt);
+			return 0;
 		}
 		case NGTCP2_ERR_VERSION_NEGOTIATION:
 		{
@@ -231,12 +137,12 @@ static inline int resolve_success(size_t buffer_length)
 		}
 		default:
 		{
-			return;
+			return -1;
 		}
 	}
 }
 
-static inline int resolve_error(struct server *server, struct msghdr *msg, int result)
+static inline int resolve_error(int socket, int result)
 {
 	switch (result)
 	{
@@ -247,7 +153,7 @@ static inline int resolve_error(struct server *server, struct msghdr *msg, int r
 		case EAGAIN: // The socket is marked non-blocking and no data is available to be read.
 		case EWOULDBLOCK:
 		{
-			return prepare_read(ring, server->socket);
+			return prepare_read(ring, socket);
 		}
 		case EINTR: // The call was interrupted by a signal before any data was received.
 		{
@@ -257,7 +163,7 @@ static inline int resolve_error(struct server *server, struct msghdr *msg, int r
 		{
 			return handle_drop_connection();
 		}
-		case ETIMEDOUT: // The connection timed out during the receive operation.
+		case ETIMEDOUT: // The connection timed out during the read operation.
 		{
 			return handle_wait_and_retry();
 		}

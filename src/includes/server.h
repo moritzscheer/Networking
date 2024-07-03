@@ -3,6 +3,8 @@
 #ifndef _SERVER_H_
 #define _SERVER_H_
 
+/* ------------------------------------------- STRUCT DECLARATIONS -------------------------------------------------- */
+
 struct server
 {
 	/* Socket descriptor for the server */
@@ -16,9 +18,9 @@ struct server
 	struct connection *connections;
 	UT_hash_handle hh;
 
-	/* QUIC settings and connection ID (CID) */
-	ngtcp2_settings *settings;
 	ngtcp2_cid *scid;
 };
+
+/* ------------------------------------------------------------------------------------------------------------------ */
 
 #endif //_SERVER_H_
