@@ -19,7 +19,7 @@ int threads_ready = MAX_THREADS;
 
 /* ------------------------------------------- FUNCTION DECLARATIONS ------------------------------------------------ */
 
-int initialize_threads(struct server *server);
+int initialize_threads();
 
 int cleanup_threads();
 

@@ -2,9 +2,14 @@
 
 #include "connection.h"
 
-pthread_mutex_t conn_mutex;
-
-struct connection *connections = NULL;
+struct connection *find_connection(ngtcp2_cid cid)
+{
+	struct connection *connection;
+	pthread_mutex_lock(&conn_mutex);
+	HASH_FIND(connection->hh, connections, &cid, sizeof(ngtcp2_cid), connection);
+	pthread_mutex_unlock(&conn_mutex);
+	return connection;
+}
 
 struct connection *create_connection(ngtcp2_cid *cid, struct sockaddr_union remote_addr, size_t remote_addrlen)
 {
@@ -21,60 +26,23 @@ struct connection *create_connection(ngtcp2_cid *cid, struct sockaddr_union remo
 	return connection;
 }
 
-void close_connection()
+void close_connection(struct connection *connection)
 {
-
+	free_connection();
+	send_connection_close_packet();
 }
 
-void drop_connection()
+void free_connection(struct connection *connection)
 {
-	/*
+	struct task *current = connection->head;
+	struct task *next;
+	while (current != NULL)
+	{
+		next = current->next;
+		free(current);
+		current = next;
+	}
+
 	HASH_DEL(connections, connection);
-	free_connection(connection);
-	*/
-}
-
-int read_connection()
-{
-
-}
-
-int write_connection()
-{
-
-}
-
-struct connection *find_connection(ngtcp2_cid cid)
-{
-	struct connection *connection;
-	pthread_mutex_lock(&conn_mutex);
-	HASH_FIND(connection->hh, connections, &cid, sizeof(ngtcp2_cid), connection);
-	pthread_mutex_unlock(&conn_mutex);
-	return connection;
-}
-
-void connection_add_stream(struct connection *connection, Stream *stream)
-{
-	for(int I = 0; I < connection->streamslen; I++)
-	{
-
-	}
-}
-
-void connection_remove_stream(struct connection *connection, Stream *stream)
-{
-
-}
-
-ngtcp2_cid *generate_cid()
-{
-	ngtcp2_cid *cid;
-	uint8_t buf[NGTCP2_MAX_CIDLEN];
-
-	if (RAND_bytes(buf, sizeof(buf)) != 1)
-	{
-		return NULL;
-	}
-	ngtcp2_cid_init(cid, buf, sizeof(buf));
-	return cid;
+	free(connection);
 }

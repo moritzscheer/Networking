@@ -5,19 +5,19 @@
 
 /* -------------------------------------------- MACRO DECLARATIONS -------------------------------------------------- */
 
-#define MAX_TRIES       3
+#define INVALID_ARG     1001
 
-#define INVALID_ARG     -1000
+#define GET_SQE_ERR     2001
 
-#define CQ_DONE         -1005
+#define GET_MSG_OUT_ERR 2002
 
-#define CQ_ERR          -1006
+#define MSG_TRUNC_ERR   2003
 
-#define SQ_FULL         -1007
+#define THREAD_ERR      1009
 
-#define SQ_ERR          -1008
+/* --------------------------------------- GLOBAL VARIABLES DECLARATIONS -------------------------------------------- */
 
-#define THREAD_ERR      -1009
+extern int res;
 
 /* ------------------------------------------------------------------------------------------------------------------ */
 

@@ -1,105 +1,54 @@
 // Copyright (C) 2024 Moritz Scheer
 
-int stream_open_cb(ngtcp2_conn *conn, int64_t stream_id, void *user_data)
+#include "connection.h"
+
+struct stream *create_stream(struct connection *connection, int64_t stream_id)
 {
-	switch (stream_id % 4)
+	struct stream *stream = find_stream(connection, stream_id);
+	if (stream)
 	{
-		case 0: /* Bidirectional Stream */
-			if (ngtcp2_conn_get_streams_bidi_left(conn) <= 0)
-			{
-				return NGTCP2_ERR_STREAM_LIMIT;
-			}
-			break;
-		case 2: /* Unidirectional Stream */
-			if (ngtcp2_conn_get_streams_uni_left(conn) <= 0)
-			{
-				return NGTCP2_ERR_STREAM_LIMIT;
-			}
-			break;
-		default:
-			return NGTCP2_ERR_CALLBACK_FAILURE;
+		return -1;
 	}
 
-	Stream *stream = (Stream *) calloc(1, sizeof(Stream));
+	if (check_streams_left(connection->ngtcp2_conn, stream_id) <= 0)
+	{
+		return -1;
+	}
+
+	stream = (struct stream *) calloc(1, sizeof(struct stream));
 	if (!stream)
 	{
-		return NULL;
+		return -1;
 	}
 
 	stream->data = queue_new();
 	if (!stream->data)
 	{
 		free(stream);
-		return NULL;
+		return -1;
 	}
 
-	stream->id = id;
+	stream->id = stream_id;
 	stream->acked_offset = 0;
 	stream->sent_offset = 0;
 
-	HASH_ADD_INT((struct connection *) user_data, stream->id, stream);
-	return 0;
+	return stream;
 }
 
-int stream_close_cb(ngtcp2_conn *conn, int64_t stream_id, void *user_data)
+struct stream *find_stream(struct connection *connection, int64_t stream_id)
 {
-	struct connection *connection = (struct connection *) user_data;
+	struct stream *stream;
+	HASH_FIND_INT(connection->streams, &stream_id, stream);
+	return stream;
+}
 
-	Stream *stream = find_stream(connection, stream_id);
-	if (!stream)
+inline int conn_check_streams_left(ngtcp2_conn conn, int64_t stream_id)
+{
+	int streams_left;
+
+	if (ngtcp2_is_bidi_stream(stream_id))
 	{
-		return 0;
+		return ngtcp2_conn_get_streams_bidi_left(conn);
 	}
-
-	// Do any necessary processing before closing the stream
-	// For example, you might want to process any remaining data in the stream buffer
-	close_stream(stream);
-
-	HASH_DEL(connection, stream);
-	free(stream);
-	return 0;
+	return ngtcp2_conn_get_streams_uni_left(conn);
 }
-
-int recv_stream_data_cb(ngtcp2_conn *conn, uint32_t flags, int64_t stream_id, uint64_t offset,
-                        const uint8_t *data, size_t datalen, void *user_data, void *stream_user_data)
-{
-	struct connection *connection = (struct connection *) user_data;
-
-	Stream *stream = find_stream(connection, stream_id);
-	if (stream)
-	{
-		stream_push_data(stream, data, datalen);
-	}
-	return 0;
-}
-
-int acked_stream_data_offset_cb(ngtcp2_conn *conn, int64_t stream_id, uint64_t offset, uint64_t datalen,
-                                void *user_data, void *stream_user_data)
-{
-	struct connection *connection = (struct connection *) user_data;
-
-	Stream *stream = find_stream(connection, stream_id);
-	if (stream)
-	{
-		stream_mark_acked(stream, offset + datalen);
-	}
-	return 0;
-}
-
-int stream_push_data(Stream *stream, const uint8_t *data, size_t data_size)
-{
-	g_return_val_if_fail(bytes, -1);
-	g_queue_push_tail(stream->buffer, bytes);
-	return 0;
-}
-
-void stream_finish_data()
-{
-
-}
-
-Stream *find_stream(struct connection *connection, int64_t id)
-{
-
-}
-

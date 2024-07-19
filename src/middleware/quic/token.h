@@ -1,16 +1,11 @@
-// Copyright (C) 2024, Moritz Scheer
+// Copyright (C) 2024 Moritz Scheer
 
-#ifndef _IO_URING_H_
-#define _IO_URING_H_
+#ifndef _TOKEN_H_
+#define _TOKEN_H_
 
 /* -------------------------------------------- MACRO DECLARATIONS -------------------------------------------------- */
 
-#define BUFFER_LEN 4096
-#define QD 64
-#define BUF_SHIFT 12 /* 4k */
-#define CQES (QD * 16)
-#define BUFFERS CQES
-#define CONTROLLEN 0
+
 
 /* ------------------------------------------- STRUCT DECLARATIONS -------------------------------------------------- */
 
@@ -22,8 +17,15 @@
 
 /* ------------------------------------------- FUNCTION DECLARATIONS ------------------------------------------------ */
 
+int verify_token(ngtcp2_cid *dcid, ngtcp2_cid *original_dcid, ngtcp2_pkt_hd header,
+                 ngtcp2_token_type token_type);
 
+static inline int verify_retry_token(struct ngtcp2_cid *original_dcid, const struct ngtcp2_pkt_hd *header,
+                                     const struct sockaddr *sockaddr, socklen_t sockaddr_len);
+
+static inline int verify_token(const struct ngtcp2_pkt_hd *header,
+                               const struct sockaddr *sockaddr, socklen_t sockaddr_len);
 
 /* ------------------------------------------------------------------------------------------------------------------ */
 
-#endif //_IO_URING_H_
+#endif //_TOKEN_H_

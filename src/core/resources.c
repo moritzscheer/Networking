@@ -1,83 +1,75 @@
 // Copyright (C) 2024 Moritz Scheer
 
 #include "resources.h"
+#include "loop.h"
 #include "network.h"
 #include "threads.h"
 #include "../middleware/session.h"
+#include "../middleware/quic/ngtcp2.h"
+#include "../middleware/http3/nghttp3.h"
 #include "../includes/server.h"
+#include "../includes/status.h"
 #include "../utils/print.h"
-#include "../utils/retry.h"
 
-int initialize_resources(struct server *server)
+int initialize_resources()
 {
-	int res;
+	print_step("Initialize the server connection.",
+			   "Failed to initialize server connection.",
+			   "Server connection initialized.",
+			   setup_listening_socket);
 
-	/*
-	 *
-	 */
-	start_step("Allocate base memory");
-	res = create_buffer_pool();
-	if (res != 0)
-	{
-		return end_step("Failed to allocate base memory", res);
-	}
-	end_step("Base memory allocated", res);
+	print_step("Initialize threads.",
+	           "Failed to initialize threads.",
+	           "Threads initialized.",
+	           initialize_threads);
 
-	/*
-	 *
-	 */
-	start_step("Establish server connection");
-	res = initialize_connection(server);
-	if (res != 0)
-	{
-		return end_step("Failed to establish server connection", res);
-	}
-	end_step("Server connection established", res);
+	print_step("Initialize database.",
+	           "Failed to initialize database.",
+	           "Database initialized.",
+	           initialize_database);
 
-	/*
-	 *
-	 */
-	start_step("Configure session");
-	res = initialize_session(server);
-	if (res != 0)
-	{
-		return end_step("Failed to configure session", res);
-	}
-	end_step("Session configured", res);
+	print_step("Initialize session.",
+	           "Failed to initialize session.",
+	           "Session initialized.",
+	           initialize_session);
 
-	/*
-	 *
-	 */
-	start_step("Configure Threads");
-	res = initialize_threads(server);
-	if (res != 0)
-	{
-		return end_step("Failed to configure threads", res);
-	}
-	end_step("Threads configured", res);
+	print_step("Configure ngtcp2 library.",
+	           "Failed to configure ngtcp2 library.",
+	           "Ngtcp2 library configured.",
+	           setup_ngtcp2);
 
-	/*
-	 *
-	 */
-	start_step("Configure database");
-	res = initialize_database(server);
-	if (res != 0)
-	{
-		return end_step("Failed to configure database", res);
-	}
-	end_step("Database configured", res);
+	print_step("Configure nghttp3 library.",
+	           "Failed to configure nghttp3 library.",
+	           "Nghttp3 library configured.",
+	           setup_nghttp3);
 
 	return res;
 }
 
-void handle_shutdown(struct server *server)
+void handle_shutdown()
 {
-	/* tries to close file descriptor 3 times */
-	retry(close, server->socket);
+	switch (status_code)
+	{
+		case INVALID_ARG:
+			break;
+		case GET_SQE_ERR:
+			break;
+		case GET_MSG_OUT_ERR:
+			break;
+		case MSG_TRUNC_ERR:
+			break;
+		case THREAD_ERR:
+			break;
+		default:
+			strerror(status_code);
+			break;
+	}
 
-	retry(backup_database, server);
+	close(server->socket)
+	backup_database();
+	free(server)
 
-	return free(server);
+	return status_code;
 }
 
 static void set_cpu_affinity(void)
@@ -110,7 +102,6 @@ static void sigint_handler(__attribute__((__unused__)) int sig)
 static void set_iowq_affinity(struct io_uring *ring)
 {
 	cpu_set_t mask;
-	int ret;
 
 	if (cfg_cpu == -1)
 	{
@@ -119,9 +110,9 @@ static void set_iowq_affinity(struct io_uring *ring)
 
 	CPU_ZERO(&mask);
 	CPU_SET(cfg_cpu, &mask);
-	ret = io_uring_register_iowq_aff(ring, 1, &mask);
-	if (ret)
+	res = io_uring_register_iowq_aff(ring, 1, &mask);
+	if (res)
 	{
-		t_error(1, ret, "unabled to set io-wq affinity\n");
+		t_error(1, res, "unabled to set io-wq affinity\n");
 	}
 }

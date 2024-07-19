@@ -15,7 +15,7 @@
 
 /* ------------------------------------------- STRUCT DECLARATIONS -------------------------------------------------- */
 
-
+typedef int (*Function)(va_list);
 
 /* --------------------------------------- GLOBAL VARIABLES DECLARATIONS -------------------------------------------- */
 
@@ -23,9 +23,7 @@ static int step = FIRST_STEP;
 
 /* ------------------------------------------- FUNCTION DECLARATIONS ------------------------------------------------ */
 
-static void start_step(char *message);
-
-static void end_step(char *message, int status_code);
+void print_step(char *init_msg, char *err_msg, char *suc_msg, Function function, ...);
 
 void print_status_code(int status_code);
 

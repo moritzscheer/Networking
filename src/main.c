@@ -1,20 +1,19 @@
 // Copyright (C) 2024 Moritz Scheer
 
+#include <string.h>
 #include "./core/resources.h"
-#include "./core/worker.h"
 #include "./includes/server.h"
-#include "./utils/print.h"
+#include "./includes/status.h"
 
 int main(void)
 {
-	struct server *server = {0};
+	memset(&server, 0, sizeof(struct server));
 
-	int status_code = initialize_resources(server);
-	if (status_code == 0)
+	res = initialize_resources();
+	if (res == 0)
 	{
-		status_code = server_loop(server);
+		res = server_loop();
 	}
 
-	handle_shutdown(server);
-	return print_status_code(status_code);
+	return handle_shutdown(res);
 }

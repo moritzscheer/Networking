@@ -3,13 +3,14 @@
 #ifndef _SERVER_H_
 #define _SERVER_H_
 
+/* -------------------------------------------- MACRO DECLARATIONS -------------------------------------------------- */
+
+#define MAX_TRIES 3
+
 /* ------------------------------------------- STRUCT DECLARATIONS -------------------------------------------------- */
 
 struct server
 {
-	/* Socket descriptor for the server */
-	int socket;
-
 	/* Local address information */
 	struct sockaddr_storage local_addr;
 	size_t local_addrlen;
@@ -20,6 +21,12 @@ struct server
 
 	ngtcp2_cid *scid;
 };
+
+/* --------------------------------------- GLOBAL VARIABLES DECLARATIONS -------------------------------------------- */
+
+struct server *server;
+
+int socket;
 
 /* ------------------------------------------------------------------------------------------------------------------ */
 

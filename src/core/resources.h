@@ -17,9 +17,9 @@
 
 /* ------------------------------------------- FUNCTION DECLARATIONS ------------------------------------------------ */
 
-int initialize_resources(struct server *server);
+int initialize_resources();
 
-void handle_shutdown(struct server *server);
+void handle_shutdown();
 
 /* ------------------------------------------------------------------------------------------------------------------ */
 

@@ -5,22 +5,17 @@
 
 /* -------------------------------------------- MACRO DECLARATIONS -------------------------------------------------- */
 
-
-
-/* ------------------------------------------- STRUCT DECLARATIONS -------------------------------------------------- */
-
-
-
-/* --------------------------------------- GLOBAL VARIABLES DECLARATIONS -------------------------------------------- */
-
-
+#define WRITE 1
 
 /* ------------------------------------------- FUNCTION DECLARATIONS ------------------------------------------------ */
 
-int handle_write_result(server *server, io_buffer *io_buffer, int result);
+int prepare_write(struct io_uring *ring, int socket, struct msghdr *msg);
 
-int prepare_write(io_uring *ring, int socket, int *submissions, msghdr *message);
+inline int validate_write(struct io_uring_cqe *cqe);
 
+static inline int resolve_success();
+
+static inline int resolve_write(int socket, int result);
 
 /* ------------------------------------------------------------------------------------------------------------------ */
 

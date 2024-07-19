@@ -8,13 +8,11 @@
 
 #include "threads.h"
 #include "worker.h"
-#include "../includes/status.h"
 #include "../includes/server.h"
+#include "../includes/status.h"
 
-int initialize_threads(struct server *server)
+int initialize_threads()
 {
-	int res;
-
 	for (int I = 0; I < NUM_THREADS; I++)
 	{
 		res = pthread_create(server->threads[I], NULL, worker_function, server);
@@ -39,8 +37,6 @@ int initialize_threads(struct server *server)
 
 int cleanup_threads()
 {
-	int res = 0;
-
 	for (int I = 0; I < NUM_THREADS; I++)
 	{
 		res = pthread_join(threads[I], NULL);
@@ -92,7 +88,6 @@ int broadcast_signal(pthread_cond_t *cond_var)
 
 int wait_for_signal(bool *cond, pthread_cond_t *cond_var)
 {
-	int res = 0;
 	while (!(*cond))
 	{
 		res = pthread_cond_wait(cond_var, &mutex);

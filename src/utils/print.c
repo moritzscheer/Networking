@@ -3,8 +3,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdarg.h>
 
-void start_step(char *message)
+void print_step(char *init_msg, char *err_msg, char *suc_msg, Function function, ...)
 {
 	if (step == FIRST_STEP)
 	{
@@ -14,11 +15,13 @@ void start_step(char *message)
 	}
 	printf("[%i/%i] %s ...\n", step, LAST_STEP, message);
 	fflush(stdout);
-}
 
-int end_step(char *message, int status_code)
-{
-	char *symbol = status_code == 0 ? SUCCESS_SYMBOL : ERROR_SYMBOL;
+	va_list args;
+	va_start(args, function);
+	res = function(args);
+	va_end(args);
+
+	char *symbol = res == 0 ? SUCCESS_SYMBOL : ERROR_SYMBOL;
 	printf("[%i/%i] %s %s\n", step, LAST_STEP, message, symbol);
 	fflush(stdout);
 
@@ -31,11 +34,31 @@ int end_step(char *message, int status_code)
 		printf("\n");
 	}
 	step++;
-	return status_code;
 }
 
 int print_status_code(int status_code)
 {
-	strerror(status_code);
+	switch (status_code)
+	{
+		case INVALID_ARG:
+			break;
+		case CQ_DONE:
+			break;
+		case CQ_ERR:
+			break;
+		case SQ_FULL:
+			break;
+		case GET_SQE_ERR:
+			break;
+		case GET_MSG_OUT_ERR:
+			break;
+		case MSG_TRUNC_ERR:
+			break;
+		case THREAD_ERR:
+			break;
+		default:
+			strerror(status_code);
+			break;
+	}
 	return status_code;
 }

@@ -11,18 +11,28 @@
 
 struct connection
 {
-	ngtcp2_cid *cid;            /* Unique identifier for the connection, also used as hash key */
-	ngtcp2_conn *conn;          /* Pointer to the QUIC connection object */
-	SSL_CTX *ssl_ctx;               /* SSL session associated with the connection */
-	ngtcp2_path *path;          /* Path information for the connection */
-	int timer_fd;
-	Stream *streams;
-	int num_streams;
-	struct Connection *next;    /* pointer to either next available Connection or next blocked Connection */
-	struct pkt *head;           /* pointers to head of queue for packets of this connection */
-	struct pkt *tail;           /* pointers to tail of queue for packets of this connection */
-	bool blocked;               /* Flag indicating if a connection is being worked on */
-	UT_hash_handle hh;          /* Hash function in use */
+	// unique identifier cid for hash function hh
+	ngtcp2_cid cid;
+	UT_hash_handle hh;
+
+	// connection objects for handling events
+	ngtcp2_conn *ngtcp2_conn;
+	nghttp3_conn *nghttp3_conn;
+	SSL_CTX *ssl_ctx;
+	ngtcp2_path *path;
+
+	int timer;
+
+	bool blocked;
+
+	struct stream *streams;
+	int stream_count;
+
+	// received packets for this connection are stored as tasks in a queue
+	struct task *head;
+	struct task *tail;
+
+	struct Connection *next;
 };
 
 struct conn_queue
@@ -33,17 +43,19 @@ struct conn_queue
 
 /* --------------------------------------- GLOBAL VARIABLES DECLARATIONS -------------------------------------------- */
 
+static pthread_mutex_t conn_mutex;
 
+struct connection *connections = NULL;
 
 /* ------------------------------------------- FUNCTION DECLARATIONS ------------------------------------------------ */
 
-struct connection *create_connection(SSL session, int socket_fd);
+struct connection *find_connection(ngtcp2_cid cid);
 
-void close_connection();
+struct connection *create_connection(ngtcp2_cid *cid, struct sockaddr_union remote_addr, size_t remote_addrlen);
 
-void free_connection();
+void close_connection(struct connection *connection);
 
-int read_connection();
+void free_connection(struct connection *connection);
 
 int write_connection();
 

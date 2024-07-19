@@ -17,9 +17,9 @@
 
 /* ------------------------------------------- FUNCTION DECLARATIONS ------------------------------------------------ */
 
-int initialize_connection(int *server_socket, ngtcp2_settings settings);
+int setup_listening_socket();
 
-int setup_listening_socket(int *server_socket);
+int set_nonblock();
 
 /* ------------------------------------------------------------------------------------------------------------------ */
 

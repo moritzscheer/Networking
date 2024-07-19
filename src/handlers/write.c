@@ -1,86 +1,71 @@
 // Copyright (C) 2024, Moritz Scheer
 
-#include <stdlib.h>
+#include <linux/io_uring.h>
+#include <liburing.h>
 #include <errno.h>
-#include <string.h>
-#include <sys/socket.h>
 
 #include "write.h"
-#include "../handlers/parser.h"
-#include "../handlers/buffer.h"
-#include "threads.h"
-#include "../includes/message.h"
+#include "../core/loop.h"
 #include "../includes/status.h"
+#include "../includes/ring.h"
 #include "../includes/server.h"
 
-pthread_mutex_t write_mutex;
-
-void write_loop(struct server *server)
+int prepare_write(const uint8_t *buf, size_t len)
 {
-	int res, status_code;
-
-	/*
-	 * Main server loop
-	 */
-	while (1)
+	struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
+	if (!sqe)
 	{
-		res = io_uring_wait_cqe(server->ring, &cqe);
-		if (res != 0)
+		io_uring_submit(&ring);
+		sqe = io_uring_get_sqe(&ring);
+		if (!sqe)
 		{
-			break;
+			return -1;
 		}
-
-		/*
-		 * Loop over completed events
-		 */
-		while (1)
-		{
-			struct msghdr *message = (struct msghdr *) cqe->user_data;
-
-			resolve_read(server->socket, message, status_code);
-
-			io_uring_cqe_seen(ring, cqe);
-
-			if (io_uring_peek_cqe(ring, &cqe) == -EAGAIN)
-			{
-				break;
-			}
-		}
-
-	}
-	return res;
-}
-
-int prepare_write(io_uring *ring, int socket, struct msghdr *message)
-{
-	/* Gets the Submission Queue and submits it, if the queue is full */
-	struct io_uring_sqe *sqe;
-	while (1)
-	{
-		sqe = io_uring_get_sqe(ring);
-		if (sqe != NULL)
-		{
-			break;
-		}
-
-		io_uring_submit_and_wait(ring, 2);
 	}
 
-	/* Get ancillary data from message struct and handles them */
-	uint8_t tries = GET_TRIES(message);
-	if (tries == 0)
-	{
-		uint8_t event_type = GET_EVENT_TYPE(message);
-		event_type = WRITE;
-	}
-	tries++;
+	io_uring_prep_send_zc(sqe, socket, buf, len, MSG_TRUNC);
+	sqe->flags |= IOSQE_FIXED_FILE;
 
-	io_uring_prep_sendmsg_zc(sqe, socket, message, 0);
-	io_uring_sqe_set_data(sqe, message);
+	sqe->flags |= IOSQE_BUFFER_SELECT;
+	sqe->buf_group = 0;
+
+	io_uring_sqe_set_data(sqe, WRITE);
 	return 0;
 }
 
-int resolve_write(server *server, message *message, int result)
+inline int validate_write(struct io_uring_cqe *cqe)
+{
+	if (!(cqe->flags & IORING_CQE_F_MORE))
+	{
+		res = prepare_read();
+		if (res != 0)
+		{
+			return res;
+		}
+	}
+
+	/* If operation was successful */
+	if (cqe->res >= 0 && (cqe->flags & IORING_CQE_F_BUFFER))
+	{
+		idx = cqe->flags >> 16;
+
+		if (msg_out->namelen > msg.msg_namelen)
+		{
+			recycle_buffer(ctx, idx);
+			return -1;
+		}
+
+		return resolve_success();
+	}
+	return resolve_error(server, msg, cqe->res);
+}
+
+static inline int resolve_success()
+{
+	return 0;
+}
+
+static inline int resolve_write(int socket, int result)
 {
 	switch (result)
 	{
@@ -141,9 +126,4 @@ int resolve_write(server *server, message *message, int result)
 			return handle_unknown_error();
 		}
 	}
-}
-
-void write_version_negotiation_packet()
-{
-
 }

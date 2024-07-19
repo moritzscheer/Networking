@@ -1,54 +1,65 @@
 // Copyright (C) 2024, Moritz Scheer
 
-#include <pthread.h>
-#include <linux/types.h>
-#include <linux/io_uring.h>
+#include <string.h>
+#include <ngtcp2/ngtcp2.h>
 
 #include "worker.h"
-#include "threads.h"
-#include "read.h"
-#include "write.h"
 #include "../includes/server.h"
-#include "../utils/packet.h"
+#include "../handlers/connection.h"
 
 int *worker_function()
 {
-	struct pkt *packet;
+	int res;
+	struct connection *connection;
+	struct task *task;
 
 	while (1)
 	{
-		status_code = fetch_message(packet);
-		if (status_code != 0)
+		res = dequeue_connection(connection, task);
+		if (res != 0)
 		{
-			return status_code;
+			return res;
 		}
 
-		handle_quic_events(packet);
-		handle_http_events(packet);
+		res = handle_quic_events(connection, task);
+		if (res != 0)
+		{
+			return res;
+		}
+
+		if(connection->nghttp3_conn)
+		{
+			res = handle_http_events(packet);
+			if (res != 0)
+			{
+				return res;
+			}
+		}
 
 		connection->blocked = false;
 	}
 }
 
-static int handle_quic_events(struct pkt *packet)
+
+static void handle_quic_events(struct connection *connection, struct pkt *pkt)
 {
 	ngtcp2_path path;
-	memcpy(&path, ngtcp2_conn_get_path(connection->conn), sizeof(path));
+	memcpy(&path, ngtcp2_conn_get_path(connection->ngtcp2_conn), sizeof(path));
 	path.remote.addrlen = remote_addrlen;
 	path.remote.addr = (struct sockaddr *) &remote_addr;
 
 	ngtcp2_pkt_info pi;
 	memset(&pi, 0, sizeof(pi));
 
-	switch (ngtcp2_conn_read_pkt(conn, &path, &pi, buf, n_read, timestamp()))
+	switch (ngtcp2_conn_read_pkt(connection->ngtcp2_conn, &path, &packet_info, iov_base, iov_len, timestamp()))
 	{
 		case 0:
 		{
-			return get_response_packet();
+
 		}
 		case NGTCP_ERR_RETRY:
 		{
-			return get_retry_packet();
+			return send_retry_packet(pkt->version, connection->cid, pkt->scid, , );
 		}
 		case NGTCP_ERR_DROP_CONN:
 		{
@@ -64,12 +75,18 @@ static int handle_quic_events(struct pkt *packet)
 		}
 		default:
 		{
-			return close_connection();
+			return close_connection(pkt->version, connection->cid, pkt->scid, , );
 		}
 	}
 }
 
-static int handle_http_events(struct pkt *packet)
+static void handle_http_events(struct pkt *packet)
 {
-
+	nghttp3_conn *conn, int64_t packet, const uint8_t *src, size_t srclen, int fin
+	nghttp3_ssize cons_bytes = nghttp3_conn_read_stream(packet->nghttp3_conn);
+	if (cons_bytes < 0)
+	{
+		nghttp3_conn_del(packet->nghttp3_conn);
+	}
+	return 0;
 }

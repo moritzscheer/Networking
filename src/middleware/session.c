@@ -2,11 +2,10 @@
 
 #include "session.h"
 #include "../includes/server.h"
+#include "../includes/status.h"
 
 int initialize_session(struct server *server)
 {
-	int res = 0;
-
 	if (res != 0)
 	{
 		return res;

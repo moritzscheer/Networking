@@ -20,9 +20,9 @@
 
 typedef int *(*WorkerFunction)(struct server *server);
 
-static int handle_quic_events(struct pkt *packet);
+int handle_quic_events(struct pkt *packet);
 
-static int handle_http_events(struct pkt *packet);
+int handle_http_events(struct pkt *packet);
 
 /* ------------------------------------------------------------------------------------------------------------------ */
 

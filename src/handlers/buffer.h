@@ -1,24 +1,18 @@
 // Copyright (C) 2024, Moritz Scheer
 
-#ifndef _DECODE_H_
-#define _DECODE_H_
-
-/* -------------------------------------------- MACRO DECLARATIONS -------------------------------------------------- */
-
-
-
-/* ------------------------------------------- STRUCT DECLARATIONS -------------------------------------------------- */
-
-
+#ifndef _BUFFER_H_
+#define _BUFFER_H_
 
 /* --------------------------------------- GLOBAL VARIABLES DECLARATIONS -------------------------------------------- */
 
+extern struct io_uring_buf_ring *buf_ring;
 
+unsigned char *buffer_base;
 
 /* ------------------------------------------- FUNCTION DECLARATIONS ------------------------------------------------ */
 
-
+int setup_buffer_pool();
 
 /* ------------------------------------------------------------------------------------------------------------------ */
 
-#endif //_DECODE_H_
+#endif //_BUFFER_H_
