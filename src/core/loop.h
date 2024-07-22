@@ -21,9 +21,11 @@
 
 /* ------------------------------------------- FUNCTION DECLARATIONS ------------------------------------------------ */
 
-int listen_loop();
+int listen_loop(void);
 
-static int setup_ring();
+static inline int validate_cqe(struct io_uring_cqe *cqe, uint64_t *event_type);
+
+static int setup_ring(void);
 
 static int cleanup_ring(int result);
 

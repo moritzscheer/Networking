@@ -7,12 +7,15 @@
 #include <ngtcp2/ngtcp2.h>
 
 #include "read.h"
-#include "connection.h"
-#include "../includes/ring.h"
-#include "../includes/server.h"
-#include "../includes/status.h"
+#include "read_queue.h"
+#include "../connection.h"
+#include "../../includes/ring.h"
+#include "../../includes/server.h"
+#include "../../includes/status.h"
+#include "../../utils/queue.h"
+#include "../../utils/utils.h"
 
-int prepare_read()
+int prepare_read(void)
 {
 	struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
 	if (!sqe)
@@ -35,7 +38,7 @@ int prepare_read()
 	return 0;
 }
 
-inline int validate_read(struct io_uring_cqe *cqe)
+int validate_read(struct io_uring_cqe *cqe)
 {
 	if (cqe->res >= 0 && (cqe->flags & IORING_CQE_F_BUFFER))
 	{
@@ -58,7 +61,9 @@ inline int validate_read(struct io_uring_cqe *cqe)
 			return -1;
 		}
 
-		return resolve_success(io_uring_recvmsg_payload(msg_out), io_uring_recvmsg_payload_length(&msg));
+		return resolve_success(io_uring_recvmsg_name(msg_out),
+		                       io_uring_recvmsg_payload(msg_out),
+		                       io_uring_recvmsg_payload_length(&msg));
 	}
 	return resolve_error(cqe->res);
 }
@@ -71,51 +76,38 @@ static inline int resolve_success(void *iov_base, size_t iov_len)
 	{
 		case 0:
 		{
-			ngtcp2_cid dcid;
-			memset(&dcid, 0, sizeof(ngtcp2_cid));
-			ngtcp2_cid_init(&dcid, vcid->dcid, vcid->dcidlen);
+			ngtcp2_cid dcid, scid;
+
+			struct rqe *entry = create_rqe(&vcid, &dcid, &scid, iov_base, iov_len);
+			if (!entry)
+			{
+				return NOMEM;
+			}
+
+			pthread_mutex_lock(&mutex);
 
 			struct connection *connection = find_connection(dcid);
 			if (!connection)
 			{
-				connection = create_connection(dcid);
+				connection = create_connection(dcid, scid);
 				if (!connection)
 				{
+					pthread_mutex_unlock(&mutex);
 					return NOMEM;
 				}
 			}
-
-			struct read_pkt *pkt = calloc(1, sizeof(struct read_pkt));
-			if (pkt)
+			else if (scid) // long header packet
 			{
-				ngtcp2_cid scid;
-				memset(&scid, 0, sizeof(ngtcp2_cid));
-				ngtcp2_cid_init(&scid, vcid->dcid, vcid->scidlen);
-
-				*pkt = (struct read_pkt) {
-					.version = vcid->version,
-					.scid = scid,
-					.receive_time = timestamp_ns(),
-					.iov_base = iov_base,
-					.iov_len = iov_len,
-					.prev_recv_pkt = prev_pkt
-				};
-
-				if (!connection->head)
+				if (!is_valid_scid(connection->ngtcp2_conn, scid))
 				{
-					connection->head = pkt;
-					connection->tail = pkt;
+					pthread_mutex_unlock(&mutex);
+					return 0;
 				}
-				else
-				{
-					connection->tail->next = pkt;
-					connection->tail = tail->next;
-				}
-
-				prev_pkt = pkt;
-				return enqueue_connection(connection);
 			}
-			return NOMEM;
+
+			res = enqueue_rqe(connection, entry);
+			pthread_mutex_unlock(&mutex);
+			return res;
 		}
 		case NGTCP2_ERR_VERSION_NEGOTIATION:
 		{
@@ -182,49 +174,4 @@ static inline int resolve_error(int result_code)
 			return handle_unknown_error();
 		}
 	}
-}
-
-static inline int enqueue_connection(struct connection *connection)
-{
-	pthread_mutex_lock(&mutex);
-
-	if (IsEmpty(available_queue))
-	{
-		res = send_signal(&cond);
-		if (res != 0)
-		{
-			pthread_mutex_unlock(&mutex);
-			return res;
-		}
-	}
-
-	if (IsEmpty(connection->tasks))
-	{
-		Enqueue(available_queue, connection);
-	}
-
-	Enqueue(connection->tasks, task);
-
-	pthread_mutex_unlock(&mutex);
-	return 0;
-}
-
-int dequeue_connection(struct connection *connection)
-{
-	pthread_mutex_lock(&mutex);
-
-	while (IsEmpty(available_queue))
-	{
-		res = pthread_cond_wait(&cond, &mutex);
-		if (res != 0)
-		{
-			pthread_mutex_unlock(&mutex);
-			return res;
-		}
-	}
-
-	Dequeue(new_conn_queue, task);
-
-	pthread_mutex_unlock(&mutex);
-	return 0;
 }

@@ -4,15 +4,18 @@
 #include <liburing.h>
 #include <sys/socket.h>
 #include <string.h>
+
 #include "loop.h"
-#include "../handlers/read.h"
-#include "../handlers/write.h"
+#include "../handlers/read/read.h"
+#include "../handlers/read/read_queue.h"
+#include "../handlers/write/write.h"
+#include "../handlers/write/write_queue.h"
 #include "../handlers/buffer.h"
 #include "../includes/server.h"
 #include "../includes/status.h"
 #include "../includes/ring.h"
 
-int listen_loop()
+int listen_loop(void)
 {
 	int i, count;
 
@@ -37,7 +40,7 @@ int listen_loop()
 		count = io_uring_peek_batch_cqe(&ring, &cqes[0], CQES);
 		for (i = 0; i < count; i++)
 		{
-			res = check_type(cqes[i], io_uring_cqe_get_data(cqes[i]));
+			res = validate_cqe(cqes[i], io_uring_cqe_get_data(cqes[i]));
 			if (res != 0)
 			{
 				return cleanup_ring(res);
@@ -47,7 +50,7 @@ int listen_loop()
 	}
 }
 
-static inline int validate_cqe(struct io_uring_cqe *cqe, uint64_t *event_type)
+static inline int validate_cqe(struct io_uring_cqe *cqe, uint64_t event_type)
 {
 	if (!(cqe->flags & IORING_CQE_F_MORE))
 	{
@@ -75,7 +78,7 @@ static inline int validate_cqe(struct io_uring_cqe *cqe, uint64_t *event_type)
 	}
 }
 
-static int setup_ring()
+static int setup_ring(void)
 {
 	struct io_uring_params params;
 	memset(&params, 0, sizeof(params));
@@ -107,18 +110,34 @@ static int setup_ring()
 		return res;
 	}
 
-	res = prepare_read();
-	if (res == -1)
+	res = rq_init();
+	if (res != 0)
 	{
 		io_uring_queue_exit(&ring);
 		return res;
 	}
 
-	return res;
+	res = wq_init();
+	if (res != 0)
+	{
+		io_uring_queue_exit(&ring);
+		return res;
+	}
+
+	res = prepare_read();
+	if (res != 0)
+	{
+		io_uring_queue_exit(&ring);
+		return res;
+	}
+
+	return 0;
 }
 
 static int cleanup_ring(int result)
 {
 	io_uring_queue_exit(&ring);
+	rq_destroy();
+	wq_destroy();
 	return result;
 }

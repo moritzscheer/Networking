@@ -10,9 +10,9 @@
 #include "network.h"
 #include "../includes/server.h"
 
-int setup_listening_socket()
+int setup_listening_socket(void)
 {
-	if ((socket = socket(DOMAIN, SOCK_DGRAM | SOCK_NONBLOCK, IPPROTO_UDP)) == -1)
+	if ((socket = socket(DOMAIN, SOCK_DGRAM | SOCK_NONBLOCK, 0)) == -1)
 	{
 		return errno;
 	}

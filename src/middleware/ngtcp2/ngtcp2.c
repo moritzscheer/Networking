@@ -5,9 +5,9 @@
 #include "ngtcp2.h"
 #include "token.h"
 #include "../includes/status.h"
+#include "../utils/utils.h"
 
-
-int setup_ngtcp2()
+int setup_ngtcp2(void)
 {
 	/*
 	 * sets up default default_settings struct with custom initial value
@@ -97,7 +97,7 @@ int create_ngtcp2_conn(ngtcp2_cid cid, uint8_t *pkt, size_t pktlen,
 
 	ngtcp2_settings settings;
 	memcpy(&settings, &default_settings, sizeof(ngtcp2_settings));
-	settings.initial_ts = timestamp_ns();
+	settings.initial_ts = get_timestamp_ns();
 	settings.token = header->token;
 	settings.tokenlen = header->tokenlen;
 	settings.token_type = token_type;
@@ -194,3 +194,23 @@ int rest()
 	}
 }
 
+bool is_valid_scid(ngtcp2_conn *conn, ngtcp2_cid cid)
+{
+	size_t num_scids = ngtcp2_conn_get_scid(conn, NULL);
+	if (num_scids == 0)
+	{
+		return false;
+	}
+
+	ngtcp2_cid scids[num_scids];
+	ngtcp2_conn_get_scid(conn, &scid);
+
+	for(int i = 0; i < num_scids; i++)
+	{
+		if(ngtcp2_cid_eq(scid[i], cid))
+		{
+			return true;
+		}
+	}
+	return false;
+}

@@ -49,10 +49,13 @@ static ngtcp2_transport_params default_params;
 
 uint32_t supported_versions[NUM_SUPPORTED_VERSIONS];
 
-size_t
+/* ------------------------------------------- TYPEDEF DECLARATIONS ------------------------------------------------- */
+
+typedef int *(*setup_ngtcp2)(void);
+
 /* ------------------------------------------- FUNCTION DECLARATIONS ------------------------------------------------ */
 
-int setup_ngtcp2();
+int setup_ngtcp2(void);
 
 int create_ngtcp2_conn(ngtcp2_cid cid, uint8_t *pkt, size_t pktlen,
                        struct sockaddr_union remote_addr, size_t remote_addrlen);

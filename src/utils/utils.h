@@ -17,7 +17,13 @@
 
 /* ------------------------------------------- FUNCTION DECLARATIONS ------------------------------------------------ */
 
+ngtcp2_tstamp get_timestamp_ns();
 
+int get_random(void *data, size_t datalen);
+
+int get_random_cid(ngtcp2_cid *cid, size_t len);
+
+ngtcp2_cid *generate_cid();
 
 /* ------------------------------------------------------------------------------------------------------------------ */
 

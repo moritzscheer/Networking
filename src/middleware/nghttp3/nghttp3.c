@@ -4,7 +4,7 @@
 #include <string.h>
 #include "../handlers/connection.h"
 
-int setup_nghttp3()
+int setup_nghttp3(void)
 {
 	/*
 	 * sets up default default_settings struct with custom initial value

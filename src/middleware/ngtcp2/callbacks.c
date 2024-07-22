@@ -24,7 +24,7 @@ extern ngtcp2_callbacks callbacks = {
 	ngtcp2_extend_max_streams,                  // extend_max_local_streams_uni
 	ngtcp2_rand,                                // rand
 	ngtcp2_get_new_connection_id,               // get_new_connection_id
-	remove_connection_id,                       // remove_connection_id
+	ngtcp2_remove_connection_id,                // remove_connection_id
 	ngtcp2_crypto_update_key_cb,                // update_key
 	path_validation,                            // path_validation
 	NULL,                                       // select_preferred_addr
@@ -105,4 +105,31 @@ int stream_reset_cb(ngtcp2_conn *conn, int64_t stream_id, uint64_t final_size, u
                     void *user_data, void *stream_user_data)
 {
 
+}
+
+ngtcp2_cid *find_scid(ngtcp2_conn *conn, ngtcp2_cid cid)
+{
+	size_t num_scids = ngtcp2_conn_get_scid(conn, NULL);
+	if (num_scids == 0)
+	{
+		return NULL;
+	}
+
+	ngtcp2_cid *scid = malloc(sizeof(struct ngtcp2_cid) * num_scids);
+	if(!scid)
+	{
+		return NULL;
+	}
+
+	ngtcp2_conn_get_scid(conn, scid);
+
+	for(int i = 0; i < num_scids; i++)
+	{
+		if(ngtcp2_cid_eq(scid[i], cid))
+		{
+			free(scid);
+			return cid;
+		}
+	}
+	return NULL;
 }

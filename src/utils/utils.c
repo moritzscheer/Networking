@@ -3,7 +3,7 @@
 #include <time.h>
 #include <sys/random.h>
 
-ngtcp2_tstamp timestamp_ns()
+ngtcp2_tstamp get_timestamp_ns()
 {
 	struct timespec ts;
 

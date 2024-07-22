@@ -86,18 +86,16 @@ int broadcast_signal(pthread_cond_t *cond_var)
 	return res;
 }
 
-int wait_for_signal(bool *cond, pthread_cond_t *cond_var)
+int wait_for_signal(bool *cond, pthread_mutex_t *mutex, pthread_cond_t *cond_var)
 {
 	while (!(*cond))
 	{
-		res = pthread_cond_wait(cond_var, &mutex);
+		res = pthread_cond_wait(cond_var, mutex);
 		if (res != 0)
 		{
-			pthread_mutex_unlock(&mutex);
 			return res;
 		}
 	}
-	*cond = !(*cond);
 	return res;
 }
 

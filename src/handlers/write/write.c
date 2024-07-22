@@ -5,10 +5,11 @@
 #include <errno.h>
 
 #include "write.h"
-#include "../core/loop.h"
-#include "../includes/status.h"
-#include "../includes/ring.h"
-#include "../includes/server.h"
+#include "write_queue.h"
+#include "../../core/loop.h"
+#include "../../includes/status.h"
+#include "../../includes/ring.h"
+#include "../../includes/server.h"
 
 int prepare_write(const uint8_t *buf, size_t len)
 {

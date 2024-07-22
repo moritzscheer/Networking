@@ -11,14 +11,16 @@
 
 struct connection
 {
-	// unique identifier cid for hash function hh
 	ngtcp2_cid cid;
+
 	UT_hash_handle hh;
 
-	// connection objects for handling events
 	ngtcp2_conn *ngtcp2_conn;
+
 	nghttp3_conn *nghttp3_conn;
+
 	SSL_CTX *ssl_ctx;
+
 	ngtcp2_path *path;
 
 	int timer;
@@ -26,19 +28,12 @@ struct connection
 	bool blocked;
 
 	struct stream *streams;
+
 	int stream_count;
 
-	// received packets for this connection are stored as tasks in a queue
-	struct task *head;
-	struct task *tail;
+	struct read_pkt_queue packets;
 
 	struct Connection *next;
-};
-
-struct conn_queue
-{
-	struct connection *head;
-	struct connection *tail;
 };
 
 /* --------------------------------------- GLOBAL VARIABLES DECLARATIONS -------------------------------------------- */
@@ -46,6 +41,8 @@ struct conn_queue
 static pthread_mutex_t conn_mutex;
 
 struct connection *connections = NULL;
+
+UT_hash_handle hh;
 
 /* ------------------------------------------- FUNCTION DECLARATIONS ------------------------------------------------ */
 

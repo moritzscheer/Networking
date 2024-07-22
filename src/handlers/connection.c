@@ -1,17 +1,17 @@
 // Copyright (C) 2024 Moritz Scheer
 
 #include "connection.h"
+#include "../middleware/ngtcp2/ngtcp2.h"
 
-struct connection *find_connection(ngtcp2_cid cid)
+struct connection *find_connection(const uint8_t *dcid, size_t dcidlen)
 {
 	struct connection *connection;
-	pthread_mutex_lock(&conn_mutex);
 	HASH_FIND(connection->hh, connections, &cid, sizeof(ngtcp2_cid), connection);
-	pthread_mutex_unlock(&conn_mutex);
 	return connection;
 }
 
-struct connection *create_connection(ngtcp2_cid *cid, struct sockaddr_union remote_addr, size_t remote_addrlen)
+struct connection *create_connection(ngtcp2_cid *dcid, ngtcp2_cid *dcid,
+                                     struct sockaddr_union remote_addr, size_t remote_addrlen)
 {
 	struct connection connection = calloc(1, sizeof(struct connection));
 	if(!connection)
@@ -19,7 +19,7 @@ struct connection *create_connection(ngtcp2_cid *cid, struct sockaddr_union remo
 		return NULL;
 	}
 
-	setup_ngtcp2_conn(cid);
+	create_ngtcp2_conn(cid);
 
 	connection->cid = cid
 	connection->streams = NULL;

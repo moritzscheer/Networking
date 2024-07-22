@@ -7,6 +7,13 @@
 
 #define WRITE 1
 
+/* ------------------------------------------- STRUCT DECLARATIONS -------------------------------------------------- */
+
+static struct wqe
+{
+
+};
+
 /* ------------------------------------------- FUNCTION DECLARATIONS ------------------------------------------------ */
 
 int prepare_write(struct io_uring *ring, int socket, struct msghdr *msg);

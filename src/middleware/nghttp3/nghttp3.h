@@ -1,7 +1,7 @@
 // Copyright (C) 2024 Moritz Scheer
 
-#ifndef _THREADS_H_
-#define _THREADS_H_
+#ifndef _NGHTTP3_H_
+#define _NGHTTP3_H_
 
 /* -------------------------------------------- MACRO DECLARATIONS -------------------------------------------------- */
 
@@ -13,26 +13,16 @@
 
 /* --------------------------------------- GLOBAL VARIABLES DECLARATIONS -------------------------------------------- */
 
-pthread_mutex_t mutex;
 
-int threads_ready = MAX_THREADS;
 
 /* ------------------------------------------- TYPEDEF DECLARATIONS ------------------------------------------------- */
 
-typedef int *(*initialize_threads)(void);
+typedef int *(*setup_nghttp3)(void);
 
 /* ------------------------------------------- FUNCTION DECLARATIONS ------------------------------------------------ */
 
-int initialize_threads(void);
-
-int cleanup_threads();
-
-int send_signal(pthread_cond_t *cond_var);
-
-int broadcast_signal(pthread_cond_t *cond_var);
-
-int wait_for_signal(bool *cond, pthread_cond_t *cond_var);
+int setup_nghttp3(void);
 
 /* ------------------------------------------------------------------------------------------------------------------ */
 
-#endif //_THREADS_H_
+#endif //_NGHTTP3_H_
