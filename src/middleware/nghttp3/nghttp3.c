@@ -28,7 +28,7 @@ int create_ngtcp2_conn(struct connection *connection)
 	nghttp3 *conn = NULL;
 	if (nghttp3_conn_server_new(&conn, &callbacks, &settings, NULL) != 0)
 	{
-		return NOMEM;
+		return ENOMEM;
 	}
 
 	return 0;

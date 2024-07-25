@@ -12,7 +12,7 @@ int wq_init(void)
 	available_queue = calloc(1, sizeof(struct queue) * 2);
 	if (!available_queue)
 	{
-		return NOMEM;
+		return ENOMEM;
 	}
 
 	res = pthread_mutex_init(&mutex);
@@ -53,16 +53,14 @@ int enqueue_wqe()
 {
 	pthread_mutex_lock(&mutex);
 
-	pthread_mutex_unlock(&mutex);
-	return 0;
+	return unlock_and_return(&mutex, 0);
 }
 
 int dequeue_wqe()
 {
 	pthread_mutex_lock(&mutex);
 
-	pthread_mutex_unlock(&mutex);
-	return 0;
+	return unlock_and_return(&mutex, 0);
 }
 
 void finish_wqe()

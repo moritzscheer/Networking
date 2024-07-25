@@ -33,6 +33,8 @@ int broadcast_signal(pthread_cond_t *cond_var);
 
 int wait_for_signal(bool *cond, pthread_cond_t *cond_var);
 
+inline int unlock_and_return(pthread_mutex_t *mutex, int res);
+
 /* ------------------------------------------------------------------------------------------------------------------ */
 
 #endif //_THREADS_H_

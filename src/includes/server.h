@@ -9,13 +9,21 @@
 
 /* ------------------------------------------- STRUCT DECLARATIONS -------------------------------------------------- */
 
+struct secret
+{
+	size_t datalen;
+	uint8_t *data;
+};
+
+/* --------------------------------------- GLOBAL VARIABLES DECLARATIONS -------------------------------------------- */
+
 struct sockaddr_storage local_addr;
 
 size_t local_addrlen;
 
-/* --------------------------------------- GLOBAL VARIABLES DECLARATIONS -------------------------------------------- */
+size_t remote_addrlen;
 
-struct server *server;
+struct secret secret;
 
 int socket;
 

@@ -37,11 +37,7 @@ int *worker_function()
 			}
 		}
 
-		res = finish_rqe(connection, entry);
-		if (res != 0)
-		{
-			break;
-		}
+		finish_rqe(connection, entry);
 	}
 	return res;
 }

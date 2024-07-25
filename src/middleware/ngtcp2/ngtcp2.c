@@ -3,8 +3,9 @@
 #include <stdlib.h>
 #include <ngtcp2/ngtcp2.h>
 #include "ngtcp2.h"
-#include "token.h"
+#include "packet.h"
 #include "../includes/status.h"
+#include "../handlers/connection.h"
 #include "../utils/utils.h"
 
 int setup_ngtcp2(void)
@@ -69,7 +70,7 @@ int setup_ngtcp2(void)
 	secret.data = calloc(1, sizeof(uint8_t) * SECRET_LEN);
 	if(!secret.data)
 	{
-		return NOMEM;
+		return ENOMEM;
 	}
 	secret.datalen = SECRET_LEN;
 	get_random(data, datalen);
@@ -77,24 +78,9 @@ int setup_ngtcp2(void)
 	return 0;
 }
 
-int create_ngtcp2_conn(ngtcp2_cid cid, uint8_t *pkt, size_t pktlen,
-					  struct sockaddr_union remote_addr, size_t remote_addrlen)
+int create_ngtcp2_conn(struct connection *connection, ngtcp2_cid *dcid, ngtcp2_cid *scid, uint32_t *version,
+                       struct sockaddr_storage *addr, ngtcp2_token_type token_type, ngtcp2_cid *original_dcid)
 {
-	ngtcp2_pkt_hd header;
-	res = ngtcp2_accept(&header, pkt, pktlen);
-	if(res != 0)
-	{
-		return res;
-	}
-
-	ngtcp2_cid original_dcid;
-	ngtcp2_token_type token_type;
-	res = verify_token(cid, original_dcid, header, &token_type);
-	if(res != 0)
-	{
-		return res;
-	}
-
 	ngtcp2_settings settings;
 	memcpy(&settings, &default_settings, sizeof(ngtcp2_settings));
 	settings.initial_ts = get_timestamp_ns();
@@ -110,28 +96,28 @@ int create_ngtcp2_conn(ngtcp2_cid cid, uint8_t *pkt, size_t pktlen,
 		params.original_dcid = *ocid;
 		params.retry_scid = *scid;
 		params.retry_scid_present = 1;
-	} else
+	}
+	else
 	{
 		params.original_dcid = *scid;
 	}
 	params.original_dcid_present = 1;
 
-	ngtcp2_path path =
-		{
-			.local = {
-				.addrlen = server->local_addrlen,
-				.addr = (struct sockaddr *) &server->local_addr
-			},
-			.remote = {
+	ngtcp2_path path = {
+		.local = {
+			.addrlen = server->local_addrlen,
+			.addr = (struct sockaddr *) &local_addr
+		},
+		.remote = {
+			.addrlen = sizeof(struct sockaddr_storage),
+			.addr = (struct sockaddr *) &remote_addr
+		}
+	};
 
-			}
-		};
-
-	ngtcp2_conn *conn = NULL;
-	if (ngtcp2_conn_server_new(&conn, &header->scid, cid, &path, header.version, &callbacks,
+	if (ngtcp2_conn_server_new(&connection->, &header->scid, cid, &path, header.version, &callbacks,
 	                           &settings, &params, NULL, connection) != 0)
 	{
-		return NOMEM;
+		return ENOMEM;
 	}
 
 	if (tls_session_.init(tls_ctx, this) != 0)
@@ -146,56 +132,13 @@ int create_ngtcp2_conn(ngtcp2_cid cid, uint8_t *pkt, size_t pktlen,
 	return 0;
 }
 
-int rest()
+inline bool scid_is_valid(ngtcp2_cid cid, ngtcp2_conn *conn)
 {
-	if (ngtcp2_crypto_generate_stateless_reset_token(
-		params.stateless_reset_token, static_secret.data(),
-		config->static_secret.size(), &scid) != 0) {
-		return -1;
+	if(!cid)
+	{
+		return true;
 	}
 
-	if (preferred_ipv4_addr.len || preferred_ipv6_addr.len) {
-		params.preferred_addr_present = 1;
-
-		if (preferred_ipv4_addr.len) {
-			params.preferred_addr.ipv4 = preferred_ipv4_addr.su.in;
-			params.preferred_addr.ipv4_present = 1;
-		}
-
-		if (preferred_ipv6_addr.len) {
-			params.preferred_addr.ipv6 = preferred_ipv6_addr.su.in6;
-			params.preferred_addr.ipv6_present = 1;
-		}
-
-		if (util::generate_secure_random() != 0) {
-			std::cerr << "Could not generate preferred address stateless reset token"
-			          << std::endl;
-			return -1;
-		}
-
-		res = get_random(params.preferred_addr.stateless_reset_token, sizeof(uint8_t));
-		if(res != 0)
-		{
-			return res;
-		}
-
-		params.preferred_addr.cid.datalen = NGTCP2_SV_SCIDLEN;
-		res = get_random(&params.preferred_addr.cid.data, params.preferred_addr.cid.datalen);
-		if(res != 0)
-		{
-			return res;
-		}
-
-		if (util::generate_secure_random({params.preferred_addr.cid.data, params.preferred_addr.cid.datalen}) != 0) {
-			std::cerr << "Could not generate preferred address connection ID"
-			          << std::endl;
-			return -1;
-		}
-	}
-}
-
-bool is_valid_scid(ngtcp2_conn *conn, ngtcp2_cid cid)
-{
 	size_t num_scids = ngtcp2_conn_get_scid(conn, NULL);
 	if (num_scids == 0)
 	{

@@ -11,7 +11,9 @@
 #include "../../includes/ring.h"
 #include "../../includes/server.h"
 
-int prepare_write(const uint8_t *buf, size_t len)
+struct wqe *pending_packets = NULL;
+
+int prepare_write(const uint8_t *buf, size_t len, struct sockaddr_storage *addr)
 {
 	struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
 	if (!sqe)
@@ -25,6 +27,7 @@ int prepare_write(const uint8_t *buf, size_t len)
 	}
 
 	io_uring_prep_send_zc(sqe, socket, buf, len, MSG_TRUNC);
+	io_uring_prep_send_set_addr(sqe, addr, remote_addrlen);
 	sqe->flags |= IOSQE_FIXED_FILE;
 
 	sqe->flags |= IOSQE_BUFFER_SELECT;
@@ -36,26 +39,8 @@ int prepare_write(const uint8_t *buf, size_t len)
 
 inline int validate_write(struct io_uring_cqe *cqe)
 {
-	if (!(cqe->flags & IORING_CQE_F_MORE))
-	{
-		res = prepare_read();
-		if (res != 0)
-		{
-			return res;
-		}
-	}
-
-	/* If operation was successful */
 	if (cqe->res >= 0 && (cqe->flags & IORING_CQE_F_BUFFER))
 	{
-		idx = cqe->flags >> 16;
-
-		if (msg_out->namelen > msg.msg_namelen)
-		{
-			recycle_buffer(ctx, idx);
-			return -1;
-		}
-
 		return resolve_success();
 	}
 	return resolve_error(server, msg, cqe->res);

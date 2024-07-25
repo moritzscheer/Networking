@@ -9,6 +9,8 @@ static struct rqe
 {
 	uint32_t version;
 
+	ngtcp2_cid dcid;                    /* destination connection id from client */
+
 	ngtcp2_cid scid;                    /* source connection id from client */
 
 	uint8_t *iov_base;                  /* pointer to packet payload */
@@ -23,8 +25,6 @@ static struct rqe
 };
 
 /* --------------------------------------- GLOBAL VARIABLES DECLARATIONS -------------------------------------------- */
-
-static struct io_uring_recvmsg_out *msg_out;
 
 static pthread_mutex_t mutex;
 
@@ -42,7 +42,7 @@ int rq_init(void);
 
 void rq_destroy(void);
 
-inline struct rqe *create_rqe(uint32_t version, const uint8_t *scid, size_t scidlen, void *iov_base, size_t iov_len);
+inline struct rqe *create_rqe(ngtcp2_version_cid *vcid, void *pkt, size_t pktlen, struct sockaddr_storage *addr);
 
 inline int enqueue_rqe(struct connection *connection, struct rqe *entry);
 

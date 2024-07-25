@@ -4,14 +4,17 @@
 #include <liburing.h>
 #include <sys/socket.h>
 #include <string.h>
+#include <errno.h>
 #include <ngtcp2/ngtcp2.h>
 
 #include "read.h"
 #include "read_queue.h"
 #include "../connection.h"
+#include "../../core/threads.h"
 #include "../../includes/ring.h"
 #include "../../includes/server.h"
 #include "../../includes/status.h"
+#include "../../middleware/ngtcp2/packet.h"
 #include "../../utils/queue.h"
 #include "../../utils/utils.h"
 
@@ -61,53 +64,21 @@ int validate_read(struct io_uring_cqe *cqe)
 			return -1;
 		}
 
-		return resolve_success(io_uring_recvmsg_name(msg_out),
-		                       io_uring_recvmsg_payload(msg_out),
-		                       io_uring_recvmsg_payload_length(&msg));
+		return resolve_success(io_uring_recvmsg_payload(msg_out),
+		                       io_uring_recvmsg_payload_length(&msg),
+		                       io_uring_recvmsg_name(msg_out));
 	}
 	return resolve_error(cqe->res);
 }
 
-static inline int resolve_success(void *iov_base, size_t iov_len)
+static inline int resolve_success(void *pkt, size_t pktlen, struct sockaddr_storage *addr)
 {
 	ngtcp2_version_cid vcid;
-
-	switch ((res = ngtcp2_pkt_decode_version_cid(&vcid, iov_base, iov_len, NGTCP2_MAX_CIDLEN)))
+	switch ((res = ngtcp2_pkt_decode_version_cid(&vcid, pkt, pktlen, NGTCP2_MAX_CIDLEN)))
 	{
 		case 0:
 		{
-			ngtcp2_cid dcid, scid;
-
-			struct rqe *entry = create_rqe(&vcid, &dcid, &scid, iov_base, iov_len);
-			if (!entry)
-			{
-				return NOMEM;
-			}
-
-			pthread_mutex_lock(&mutex);
-
-			struct connection *connection = find_connection(dcid);
-			if (!connection)
-			{
-				connection = create_connection(dcid, scid);
-				if (!connection)
-				{
-					pthread_mutex_unlock(&mutex);
-					return NOMEM;
-				}
-			}
-			else if (scid) // long header packet
-			{
-				if (!is_valid_scid(connection->ngtcp2_conn, scid))
-				{
-					pthread_mutex_unlock(&mutex);
-					return 0;
-				}
-			}
-
-			res = enqueue_rqe(connection, entry);
-			pthread_mutex_unlock(&mutex);
-			return res;
+			break;
 		}
 		case NGTCP2_ERR_VERSION_NEGOTIATION:
 		{
@@ -115,6 +86,53 @@ static inline int resolve_success(void *iov_base, size_t iov_len)
 		}
 		default:
 		{
+			return res;
+		}
+	}
+
+	struct rqe *entry = create_rqe(&vcid, pkt, pktlen, addr);
+	if (!entry)
+	{
+		return ENOMEM;
+	}
+
+	pthread_mutex_lock(&mutex);
+
+	struct connection connection;
+	switch ((res = get_connection(&connection, &entry->dcid, &entry->scid, &entry->version, addr)))
+	{
+		case 0:
+		{
+			res = enqueue_rqe(connection, entry);
+			return unlock_and_return(&mutex, res);
+		}
+		case NGTCP2_ERR_DROP:
+		{
+			free(entry);
+			return 0;
+		}
+		case NGTCP2_ERR_RETRY:
+		{
+			pthread_mutex_unlock(&mutex);
+			free(entry);
+			return send_retry_packet();
+		}
+		case NGTCP2_ERR_STATELESS_RESET:
+		{
+			pthread_mutex_unlock(&mutex);
+			free(entry);
+			return send_stateless_reset_packet();
+		}
+		case NGTCP2_ERR_CONNECTION_CLOSE:
+		{
+			pthread_mutex_unlock(&mutex);
+			free(entry);
+			return send_connection_close_packet();
+		}
+		default:
+		{
+			pthread_mutex_unlock(&mutex);
+			free(entry);
 			return res;
 		}
 	}
@@ -175,3 +193,5 @@ static inline int resolve_error(int result_code)
 		}
 	}
 }
+
+

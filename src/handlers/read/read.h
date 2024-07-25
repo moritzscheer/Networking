@@ -20,7 +20,7 @@ int prepare_read(void);
 
 int validate_read(struct io_uring_cqe *cqe);
 
-static inline int resolve_success(void *iov_base, size_t iov_len);
+static inline int resolve_success(void *pkt, size_t pktlen, struct sockaddr_storage *addr);
 
 static inline int resolve_error(int result_code);
 

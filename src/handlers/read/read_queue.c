@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "read_queue.h"
+#include "../../core/threads.h"
 #include "../../utils/queue.h"
 #include "../../utils/utils.h"
 
@@ -13,13 +14,13 @@ int rq_init(void)
 	available_queue = calloc(1, sizeof(struct queue) * 2);
 	if (!available_queue)
 	{
-		return NOMEM;
+		return ENOMEM;
 	}
 
 	blocked_queue = calloc(1, sizeof(struct queue) * 2);
 	if (!available_queue)
 	{
-		return NOMEM;
+		return ENOMEM;
 	}
 
 	res = pthread_mutex_init(&mutex);
@@ -47,23 +48,20 @@ void rq_destroy(void)
 	pthread_mutex_destroy(&mutex);
 }
 
-inline struct rqe *create_rqe(ngtcp2_version_cid *vcid, ngtcp2_cid *scid, ngtcp2_cid *dcid, void *iov_base,
-                              size_t iov_len)
+inline struct rqe *create_rqe(ngtcp2_version_cid *vcid, void *pkt, size_t pktlen, struct sockaddr_storage *addr)
 {
-	struct rqe *entry = malloc(sizeof(struct rqe));
+	struct rqe *entry = calloc(1, sizeof(struct rqe));
 	if (!entry)
 	{
 		return NULL;
 	}
 
-	memset(scid, 0, sizeof(ngtcp2_cid));
+	ngtcp2_cid_init(&entry->dcid, vcid->dcid, vcid->dcidlen);
+
 	if (vcid->scid)
 	{
-		ngtcp2_cid_init(scid, vcid->scid, vcid->scidlen);
+		ngtcp2_cid_init(&entry->scid, vcid->scid, vcid->scidlen);
 	}
-
-	memset(dcid, 0, sizeof(ngtcp2_cid));
-	ngtcp2_cid_init(scid, vcid->dcid, vcid->dcidlen);
 
 	entry->version = vcid->version;
 	entry->scid = scid;
@@ -85,14 +83,12 @@ inline int enqueue_rqe(struct connection *connection, struct rqe *entry)
 		res = enqueue_and_signal(available_queue, connection);
 		if (res != 0)
 		{
-			pthread_mutex_unlock(&mutex);
-			return res;
+			return unlock_and_return(&mutex, res);
 		}
 	}
 	enqueue(connection->packets, entry);
 
-	pthread_mutex_unlock(&mutex);
-	return 0;
+	return unlock_and_return(&mutex, 0);
 }
 
 inline int dequeue_rqe(struct connection *connection, struct rqe *entry)
@@ -102,8 +98,7 @@ inline int dequeue_rqe(struct connection *connection, struct rqe *entry)
 	res = dequeue_or_wait(available_queue, connection, &cond);
 	if (res != 0)
 	{
-		pthread_mutex_unlock(&mutex);
-		return res;
+		return unlock_and_return(&mutex, res);
 	}
 
 	enqueue(blocked_queue, connection);
@@ -111,8 +106,7 @@ inline int dequeue_rqe(struct connection *connection, struct rqe *entry)
 
 	entry = dequeue(connection->packets);
 
-	pthread_mutex_unlock(&mutex);
-	return 0;
+	return unlock_and_return(&mutex, 0);
 }
 
 inline void finish_rqe(struct connection *connection, struct rqe *entry)

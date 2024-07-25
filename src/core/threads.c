@@ -99,3 +99,8 @@ int wait_for_signal(bool *cond, pthread_mutex_t *mutex, pthread_cond_t *cond_var
 	return res;
 }
 
+inline int unlock_and_return(pthread_mutex_t *mutex, int res)
+{
+	pthread_mutex_unlock(mutex);
+	return res;
+}

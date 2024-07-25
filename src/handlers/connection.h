@@ -13,8 +13,6 @@ struct connection
 {
 	ngtcp2_cid cid;
 
-	UT_hash_handle hh;
-
 	ngtcp2_conn *ngtcp2_conn;
 
 	nghttp3_conn *nghttp3_conn;
@@ -40,23 +38,20 @@ struct connection
 
 static pthread_mutex_t conn_mutex;
 
-struct connection *connections = NULL;
+static struct connection *connections = NULL;
 
-UT_hash_handle hh;
+static UT_hash_handle hh;
 
 /* ------------------------------------------- FUNCTION DECLARATIONS ------------------------------------------------ */
 
 struct connection *find_connection(ngtcp2_cid cid);
 
-struct connection *create_connection(ngtcp2_cid *cid, struct sockaddr_union remote_addr, size_t remote_addrlen);
+int create_connection(struct connection *connection, ngtcp2_cid *dcid, ngtcp2_cid *scid, void *pkt, size_t pktlen,
+                      struct sockaddr_storage *addr);
 
 void close_connection(struct connection *connection);
 
 void free_connection(struct connection *connection);
-
-int write_connection();
-
-struct connection *find_connection(struct connection *connections, uint8_t *dcid, size_t dcid_size);
 
 /* ------------------------------------------------------------------------------------------------------------------ */
 
