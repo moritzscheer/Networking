@@ -78,8 +78,8 @@ int setup_ngtcp2(void)
 	return 0;
 }
 
-int create_ngtcp2_conn(struct connection *connection, ngtcp2_cid *dcid, ngtcp2_cid *scid, uint32_t *version,
-                       struct sockaddr_storage *addr, ngtcp2_token_type token_type, ngtcp2_cid *original_dcid)
+int create_ngtcp2_conn(struct connection *connection, ngtcp2_pkt_hd *header, ngtcp2_token_type token_type,
+                       ngtcp2_cid *original_dcid)
 {
 	ngtcp2_settings settings;
 	memcpy(&settings, &default_settings, sizeof(ngtcp2_settings));
@@ -156,4 +156,30 @@ inline bool scid_is_valid(ngtcp2_cid cid, ngtcp2_conn *conn)
 		}
 	}
 	return false;
+}
+
+ngtcp2_cid *generate_cid()
+{
+	ngtcp2_cid *cid;
+	uint8_t buf[NGTCP2_MAX_CIDLEN];
+
+	if (RAND_bytes(buf, sizeof(buf)) != 1)
+	{
+		return NULL;
+	}
+	ngtcp2_cid_init(cid, buf, sizeof(buf));
+	return cid;
+}
+
+int generate_cid(ngtcp2_cid *cid, size_t len)
+{
+	if (len > NGTCP2_MAX_CIDLEN)
+	{
+		return -1;
+	}
+
+	cid->datalen = len;
+	rand_bytes(cid->data, cid->datalen);
+
+	return 0;
 }

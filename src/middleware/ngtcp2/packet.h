@@ -22,8 +22,8 @@
 
 /* ------------------------------------------- FUNCTION DECLARATIONS ------------------------------------------------ */
 
-int verify_initial_packet(ngtcp2_cid *dcid, uint32_t *version, ngtcp2_token_type token_type,
-                          ngtcp2_cid *original_dcid, ngtcp2_cid *prev_original_dcid);
+int verify_initial_packet(ngtcp2_token_type token_type, ngtcp2_cid *original_dcid, struct rqe *entry);
+
 
 inline int send_connection_close_packet(uint32_t version, const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
                                         uint64_t error_code, const uint8_t *reason, size_t reasonlen,

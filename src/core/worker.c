@@ -58,7 +58,7 @@ static void handle_quic_events(struct connection *connection, struct rqe *entry)
 	{
 		case 0:
 		{
-
+			break;
 		}
 		case NGTCP_ERR_RETRY:
 		{

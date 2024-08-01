@@ -55,7 +55,7 @@ int validate_read(struct io_uring_cqe *cqe)
 
 		if (msg_out->flags & MSG_TRUNC)
 		{
-			return MSG_TRUNC_ERR;
+			return 0;
 		}
 
 		if (msg_out->namelen > msg.msg_namelen)
@@ -71,74 +71,41 @@ int validate_read(struct io_uring_cqe *cqe)
 	return resolve_error(cqe->res);
 }
 
-static inline int resolve_success(void *pkt, size_t pktlen, struct sockaddr_storage *addr)
+static int resolve_success(void *pkt, size_t pktlen, struct sockaddr_storage *addr)
 {
 	ngtcp2_version_cid vcid;
-	switch ((res = ngtcp2_pkt_decode_version_cid(&vcid, pkt, pktlen, NGTCP2_MAX_CIDLEN)))
+
+	res = ngtcp2_pkt_decode_version_cid(&vcid, pkt, pktlen, NGTCP2_MAX_CIDLEN);
+	if (res == NGTCP2_ERR_VERSION_NEGOTIATION)
 	{
-		case 0:
-		{
-			break;
-		}
-		case NGTCP2_ERR_VERSION_NEGOTIATION:
-		{
-			return send_version_negotiation_packet(vcid->dcid, vcid->dcidlen, vcid->scid, vcid->scidlen);
-		}
-		default:
-		{
-			return res;
-		}
+		return send_version_negotiation_packet(vcid->dcid, vcid->dcidlen, vcid->scid, vcid->scidlen);
+	}
+	else if (res != 0)
+	{
+		return 0;
 	}
 
-	struct rqe *entry = create_rqe(&vcid, pkt, pktlen, addr);
-	if (!entry)
+	struct read_event *event = create_read_event(&vcid, pkt, pktlen, addr);
+	if (!event)
 	{
 		return ENOMEM;
 	}
 
-	pthread_mutex_lock(&mutex);
+	struct connection *connection = NULL;
+	pthread_mutex_lock(&conn_mutex);
 
-	struct connection connection;
-	switch ((res = get_connection(&connection, &entry->dcid, &entry->scid, &entry->version, addr)))
+	res = get_connection(connection, event);
+	if (!connection)
 	{
-		case 0:
-		{
-			res = enqueue_rqe(connection, entry);
-			return unlock_and_return(&mutex, res);
-		}
-		case NGTCP2_ERR_DROP:
-		{
-			free(entry);
-			return 0;
-		}
-		case NGTCP2_ERR_RETRY:
-		{
-			pthread_mutex_unlock(&mutex);
-			free(entry);
-			return send_retry_packet();
-		}
-		case NGTCP2_ERR_STATELESS_RESET:
-		{
-			pthread_mutex_unlock(&mutex);
-			free(entry);
-			return send_stateless_reset_packet();
-		}
-		case NGTCP2_ERR_CONNECTION_CLOSE:
-		{
-			pthread_mutex_unlock(&mutex);
-			free(entry);
-			return send_connection_close_packet();
-		}
-		default:
-		{
-			pthread_mutex_unlock(&mutex);
-			free(entry);
-			return res;
-		}
+		free(event);
+		return unlock_and_return(&mutex, res);
 	}
+
+	enqueue_read_event(connection, event);
+	return unlock_and_return(&conn_mutex, res);
 }
 
-static inline int resolve_error(int result_code)
+static int resolve_error(int result_code)
 {
 	switch (result_code)
 	{
@@ -194,4 +161,81 @@ static inline int resolve_error(int result_code)
 	}
 }
 
+static struct read_event *create_read_event(ngtcp2_version_cid *vcid, void *pkt, size_t pktlen,
+                                            struct sockaddr_storage *addr)
+{
+	struct read_event *event = calloc(1, sizeof(struct read_event));
+	if (!event)
+	{
+		return NULL;
+	}
 
+	ngtcp2_cid_init(&event->dcid, vcid->dcid, vcid->dcidlen);
+	if (vcid->scid)
+	{
+		ngtcp2_cid_init(&event->scid, vcid->scid, vcid->scidlen);
+	}
+
+	event->version = vcid->version;
+	event->scid = scid;
+	event->receive_time = get_timestamp_ns();
+	event->iov_base = iov_base;
+	event->iov_len = iov_len;
+	event->prev_recv_pkt = prev_read_event;
+
+	prev_read_event = event;
+	return event;
+}
+
+static void enqueue_read_event(struct connection *connection, struct read_event *event)
+{
+	pthread_mutex_lock(&read_mutex);
+
+	if (!connection->read_events->head)
+	{
+		enqueue(available_conn, connection);
+	}
+	enqueue(connection->read_events, event);
+
+	if (available_conn->head && available_threads > 0)
+	{
+		pthread_cond_signal(cond_var);
+	}
+
+	pthread_mutex_unlock(&read_mutex);
+}
+
+int dequeue_event(struct connection *connection, struct read_event *event)
+{
+	pthread_mutex_lock(&read_mutex);
+
+	while (!available_queue->head)
+	{
+		res = pthread_cond_wait(&cond, mutex);
+		if (res != 0)
+		{
+			return unlock_and_return(&read_mutex, res);
+		}
+	}
+	connection = dequeue(available_queue);
+	enqueue(blocked_queue, connection);
+	connection->blocked = true;
+
+	event = dequeue(connection->packets);
+
+	return unlock_and_return(&read_mutex, 0);
+}
+
+void finish_event(struct connection *connection, struct read_event *event)
+{
+	pthread_mutex_lock(&mutex);
+
+	if (!is_empty(connection->packets))
+	{
+
+	}
+	connection->blocked = false;
+
+	pthread_mutex_unlock(&mutex);
+	free(event);
+}
