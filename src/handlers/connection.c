@@ -8,6 +8,13 @@
 #include "../middleware/ngtcp2/packet.h"
 #include "../includes/status.h"
 
+struct connection *find_connection(ngtcp2_cid *dcid)
+{
+	struct connection *connection;
+	HASH_FIND(hh, connections, event->dcid, sizeof(event->dcid), connection);
+	return connection;
+}
+
 int get_connection(struct connection *connection, struct read_event *event)
 {
 	HASH_FIND(hh, connections, event->dcid, sizeof(event->dcid), connection);

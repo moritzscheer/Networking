@@ -9,30 +9,35 @@
 
 #include "network.h"
 #include "../includes/server.h"
+#include "../includes/status.h"
 
 int setup_listening_socket(void)
 {
-	if ((socket = socket(DOMAIN, SOCK_DGRAM | SOCK_NONBLOCK, 0)) == -1)
+	listen_socket = socket(AF_INET6, SOCK_DGRAM, 0);
+	if (listen_socket == -1)
 	{
 		return errno;
 	}
 
-	struct sockaddr_in server_address;
-	memset(&server_address, 0, sizeof(struct sockaddr_in));
-	server_address.sin_family = DOMAIN;
-	server_address.sin_addr.s_addr = SOCK_DGRAM;
-	server_address.sin_port = htons(PORT);
-
-	set_nonblock(socket);
-
-	/*
-	if(setsockopt(socket, AF_INET, , 1, sizeof(int)) < 0)
+	int dual_stack = 0;
+	if(setsockopt(listen_socket, IPPROTO_IPV6, IPV6_V6ONLY, &dual_stack, sizeof(dual_stack)) < 0)
 	{
-		perror("Socket option editing failed!");
-		close(socket);
+		close(listen_socket);
 		return errno;
 	}
-	*/
+
+	res = set_nonblock(listen_socket);
+	if(res != 0)
+	{
+		close(listen_socket);
+		return res;
+	}
+
+	struct sockaddr_in6 addr;
+	memset(&addr, 0, sizeof(addr));
+	addr.sin6_family = AF_INET6;
+	addr.sin6_addr = in6addr_any;
+	addr.sin6_port = htons(PORT);
 
 	if (bind(socket, (sockaddr_in *) server_address, sizeof(struct sockaddr_in)) == -1)
 	{
@@ -50,21 +55,40 @@ int setup_listening_socket(void)
 	return 0;
 }
 
-int set_nonblock()
+int set_nonblock(int sockfd)
 {
-	int flags = 0;
-
-	flags = fcntl(socket, F_GETFL);
-	if (flags < 0)
+	int flags = fcntl(sockfd, F_GETFL, 0);
+	if (flags == -1)
 	{
-		return flags;
+		return errno;
 	}
 
-	flags = fcntl(socket, F_SETFL, flags | O_NONBLOCK);
-	if (flags < 0)
+	if (fcntl(sockfd, F_SETFL, flags | O_NONBLOCK) == -1)
 	{
-		return flags;
+		return errno;
 	}
-
 	return 0;
+}
+
+socklen_t get_addrlen(struct sockaddr_storage *addr)
+{
+	switch (addr->ss_family)
+	{
+		case AF_INET:
+		{
+			return sizeof(struct sockaddr_in);
+		}
+		case AF_INET6:
+		{
+			return sizeof(struct sockaddr_in6);
+		}
+		case AF_UNIX:
+		{
+			return sizeof(struct sockaddr_un);
+		}
+		default:
+		{
+			return 0;
+		}
+	}
 }

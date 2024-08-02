@@ -64,14 +64,17 @@ int validate_read(struct io_uring_cqe *cqe)
 			return -1;
 		}
 
-		return resolve_success(io_uring_recvmsg_payload(msg_out),
-		                       io_uring_recvmsg_payload_length(&msg),
-		                       io_uring_recvmsg_name(msg_out));
+		uint8_t *pkt = io_uring_recvmsg_payload(msg_out);
+		size_t pktlen = io_uring_recvmsg_payload_length(&msg);
+		struct sockaddr_storage *addr = io_uring_recvmsg_name(msg_out);
+		socklen_t addrlen = get_addrlen(addr);
+
+		return resolve_success(pkt, pktlen, addr, addrlen);
 	}
 	return resolve_error(cqe->res);
 }
 
-static int resolve_success(void *pkt, size_t pktlen, struct sockaddr_storage *addr)
+static int resolve_success(void *pkt, size_t pktlen, struct sockaddr_storage *addr, socklen_t addrlen)
 {
 	ngtcp2_version_cid vcid;
 
@@ -82,13 +85,36 @@ static int resolve_success(void *pkt, size_t pktlen, struct sockaddr_storage *ad
 	}
 	else if (res != 0)
 	{
-		return 0;
+		return DROP;
 	}
 
 	struct read_event *event = create_read_event(&vcid, pkt, pktlen, addr);
 	if (!event)
 	{
 		return ENOMEM;
+	}
+
+	struct connection *connection = NULL;
+	pthread_mutex_lock(&conn_mutex);
+
+	res = get_connection(connection, event);
+	if (!connection)
+	{
+		free(event);
+		return unlock_and_return(&mutex, res);
+	}
+
+	enqueue_read_event(connection, event);
+	return unlock_and_return(&conn_mutex, res);
+}
+
+static int resolve_success(void *pkt, size_t pktlen, struct sockaddr_storage *addr, socklen_t addrlen)
+{
+	struct read_event_storage event;
+	res = decode_header(&event, pkt, pktlen, addr, addrlen);
+	if (res != 0)
+	{
+		return res;
 	}
 
 	struct connection *connection = NULL;

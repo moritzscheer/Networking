@@ -21,11 +21,9 @@ struct sockaddr_storage local_addr;
 
 size_t local_addrlen;
 
-size_t remote_addrlen;
-
 struct secret secret;
 
-int socket;
+int listen_socket;
 
 /* ------------------------------------------------------------------------------------------------------------------ */
 

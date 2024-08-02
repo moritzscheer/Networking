@@ -114,7 +114,7 @@ int create_ngtcp2_conn(struct connection *connection, ngtcp2_pkt_hd *header, ngt
 		}
 	};
 
-	if (ngtcp2_conn_server_new(&connection->, &header->scid, cid, &path, header.version, &callbacks,
+	if (ngtcp2_conn_server_new(&connection->ngtcp2_conn, &header->scid, cid, &path, header.version, &callbacks,
 	                           &settings, &params, NULL, connection) != 0)
 	{
 		return ENOMEM;

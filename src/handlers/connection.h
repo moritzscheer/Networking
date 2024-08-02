@@ -17,7 +17,7 @@ struct connection
 
 	nghttp3_conn *nghttp3_conn;
 
-	SSL_CTX *ssl_ctx;
+	WOLFSSL_CTX *ssl_ctx;
 
 	ngtcp2_path *path;
 

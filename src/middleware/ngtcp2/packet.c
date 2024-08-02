@@ -13,6 +13,11 @@
 #include "../../includes/status.h"
 #include "../../utils/utils.h"
 
+int decode_short_header()
+{
+
+}
+
 int verify_initial_packet(ngtcp2_token_type token_type, ngtcp2_cid *original_dcid, struct rqe *entry)
 {
 	ngtcp2_pkt_hd header;
@@ -128,7 +133,7 @@ inline int send_retry_packet(uint32_t version, const ngtcp2_cid *dcid, const ngt
 	return prepare_write(resized_buf, len);
 }
 
-inline int send_stateless_reset_packet(ngtcp2_cid *dcid, struct sockaddr_storage *addr)
+inline int send_stateless_reset_packet(ngtcp2_cid *dcid, struct sockaddr_storage *addr, socklen_t addrlen)
 {
 	uint8_t *buf = calloc(1, BUF_SIZE);
 	if (!buf)
