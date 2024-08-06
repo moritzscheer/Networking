@@ -110,25 +110,46 @@ static int resolve_success(void *pkt, size_t pktlen, struct sockaddr_storage *ad
 
 static int resolve_success(void *pkt, size_t pktlen, struct sockaddr_storage *addr, socklen_t addrlen)
 {
-	struct read_event_storage event;
-	res = decode_header(&event, pkt, pktlen, addr, addrlen);
-	if (res != 0)
+	struct read_storage *event = NULL;
+
+	if (pkt[0] & 0x80)
 	{
-		return res;
+		res = decode_long_header(event, pkt, pktlen, addr, addrlen);
+		if (!event)
+		{
+			return res;
+		}
+
+		pthread_mutex_lock(&conn_mutex);
+
+		res = get_connection(connection, &header.dcid);
+		if (!connection)
+		{
+			pthread_mutex_unlock(&conn_mutex);
+			return res;
+		}
 	}
-
-	struct connection *connection = NULL;
-	pthread_mutex_lock(&conn_mutex);
-
-	res = get_connection(connection, event);
-	if (!connection)
+	else
 	{
-		free(event);
-		return unlock_and_return(&mutex, res);
+		res = decode_short_header(event, pkt, pktlen, addr, addrlen);
+		if (!event)
+		{
+			return res;
+		}
+
+		pthread_mutex_lock(&conn_mutex);
+
+		connection = find_connection(&event->dcid);
+		if (!connection)
+		{
+			pthread_mutex_unlock(&conn_mutex);
+			return send_stateless_reset_packet(&header.dcid, addr, addrlen);
+		}
 	}
 
 	enqueue_read_event(connection, event);
-	return unlock_and_return(&conn_mutex, res);
+	pthread_mutex_unlock(&conn_mutex);
+	return res;
 }
 
 static int resolve_error(int result_code)

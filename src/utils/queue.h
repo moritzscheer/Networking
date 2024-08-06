@@ -1,6 +1,4 @@
-//
-// Created by morit on 19.07.2024.
-//
+// Copyright (C) 2024 Moritz Scheer
 
 #ifndef _QUEUE_H_
 #define _QUEUE_H_

@@ -13,11 +13,6 @@
 #include "../../includes/status.h"
 #include "../../utils/utils.h"
 
-int decode_short_header()
-{
-
-}
-
 int verify_initial_packet(ngtcp2_token_type token_type, ngtcp2_cid *original_dcid, struct rqe *entry)
 {
 	ngtcp2_pkt_hd header;
@@ -190,4 +185,27 @@ inline int send_version_negotiation_packet(const uint8_t *dcid, size_t dcidlen, 
 		return ENOMEM;
 	}
 	return prepare_write(resized_buf, len);
+}
+
+char *make_status_body(unsigned int status_code)
+{
+	auto status_string = util::format_uint(status_code);
+	auto reason_phrase = http::get_reason_phrase(status_code);
+
+	std::string body;
+	body = "<html><head><title>";
+	body += status_string;
+	body += ' ';
+	body += reason_phrase;
+	body += "</title></head><body><h1>";
+	body += status_string;
+	body += ' ';
+	body += reason_phrase;
+	body += "</h1><hr><address>";
+	body += NGTCP2_SERVER;
+	body += " at port ";
+	body += util::format_uint(config.port);
+	body += "</address>";
+	body += "</body></html>";
+	return body;
 }
