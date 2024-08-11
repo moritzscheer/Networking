@@ -104,10 +104,12 @@ inline int send_retry_packet(uint32_t version, const ngtcp2_cid *dcid, const ngt
 		return ENOMEM;
 	}
 
-	ngtcp2_cid retry_scid = generate_cid();
-	if(!retry_scid)
+	ngtcp2_cid retry_scid;
+	retry_scid.datalen = NGTCP_MAX_CIDLEN;
+	res = get_random(&cid.data, NGTCP2_MAX_CIDLEN);
+	if(res != 0)
 	{
-		return ENOMEM;
+		return res;
 	}
 
 	uint8_t token;
@@ -115,10 +117,10 @@ inline int send_retry_packet(uint32_t version, const ngtcp2_cid *dcid, const ngt
 														  retry_scid, original_dcid, timestamp);
 	if(tokenlen == -1)
 	{
-		return res;
+		return 0;
 	}
 
-	ssize_t len = ngtcp2_crypto_write_retry(buf, BUF_SIZE, version, dcid, scid, original_dcid, token, tokenlen);
+	ssize_t len = ngtcp2_crypto_write_retry(buf, BUF_SIZE, version, dcid, scid, original_dcid, &token, tokenlen);
 	uint8_t *resized_buf = realloc(buf, len);
 	if(!resized_buf)
 	{

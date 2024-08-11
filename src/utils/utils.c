@@ -21,25 +21,24 @@ ngtcp2_tstamp get_timestamp_ns()
 	return ts.tv_sec * (int64_t) NGTCP2_SECONDS + ts.tv_nsec;
 }
 
-int get_timestamp_ns2(ngtcp2_tstamp tstamp)
+int get_random(void *buf, size_t buflen)
 {
-	struct timespec ts;
-
-	int res = clock_gettime(CLOCK_MONOTONIC, &ts);
-	if (res == 0)
+	size_t bytes_read = 0;
+	while (bytes_read < buflen)
 	{
-		tstamp = ts.tv_sec * (int64_t) NGTCP2_SECONDS + ts.tv_nsec
+		ssize_t result = getrandom((uint8_t *) buf + bytes_read, buflen - bytes_read, 0);
+		if (result == -1)
+		{
+			if (errno == EINTR)
+			{
+				continue;
+			}
+			else
+			{
+				return -errno;
+			}
+		}
+		bytes_read += result;
 	}
-	return res;
-}
-
-int get_random(void *data, size_t datalen)
-{
-	ssize_t random = getrandom(data, datalen);
-	if (random < 0)
-	{
-		usleep(1000);
-		return getrandom(data, datalen);
-	}
-	return random;
+	return (int) bytes_read;
 }

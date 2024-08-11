@@ -3,9 +3,15 @@
 #ifndef _CONVERT_H_
 #define _CONVERT_H_
 
-uint64_t get_uvarint(const uint8_t *data, size_t *datalen);
+union uvarint
+{
+	uint8_t n8;
+	uint16_t n16;
+	uint32_t n32;
+	uint64_t n64;
+};
 
-size_t get_uvarintlen(const uint8_t *start);
+size_t get_uvarint(uint8_t *start, union uvarint *var)
 
 uint64_t ntohll(uint64_t netlong64);
 

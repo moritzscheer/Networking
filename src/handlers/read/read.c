@@ -122,11 +122,20 @@ static int resolve_success(void *pkt, size_t pktlen, struct sockaddr_storage *ad
 
 		pthread_mutex_lock(&conn_mutex);
 
-		res = get_connection(connection, &header.dcid);
+		connection = find_connection(&event->dcid);
 		if (!connection)
 		{
+			connection = create_connection();
+			if (!connection)
+			{
+				pthread_mutex_unlock(&conn_mutex);
+				return ENOMEM;
+			}
+		}
+		else if (!valid_scid())
+		{
 			pthread_mutex_unlock(&conn_mutex);
-			return res;
+			return 0;
 		}
 	}
 	else

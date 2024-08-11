@@ -37,7 +37,21 @@ static int decode_long_header(struct read_storage *event, uint8_t *pkt, size_t p
 {
 	size_t len = LONG_HEADER_PKT_MIN_LENGTH;
 
-	if (pktlen < len) // pkt size must be at least 7 byte
+	if (pktlen < len || !(pkt[0] & FIXED_BIT_MASK))
+	{
+		return 0;
+	}
+
+	size_t dcidlen = pkt[5];
+	len += dcidlen;
+	if (pktlen < len)
+	{
+		return 0;
+	}
+
+	size_t scidlen = pkt[6 + dcidlen];
+	len += scidlen;
+	if (pktlen < len)
 	{
 		return 0;
 	}
@@ -45,45 +59,41 @@ static int decode_long_header(struct read_storage *event, uint8_t *pkt, size_t p
 	uint32_t version = get_version(pkt);
 	if (version == 0)
 	{
-		return handle_version_negotiation_pkt();
+		return send_version_negotiation_packet(&pkt[6], dcidlen, &pkt[6 + dcidlen + 1], scidlen);
 	}
 
-	// parse destination connection id
-	size_t dcidlen = pkt[5];
-	len += dcidlen;
-	if (pktlen < len)
-	{
-		return 0;
-	}
 	ngtcp2_cid dcid;
 	dcid.datalen = dcidlen;
-	memcpy(&dcid, pkt[6], dcidlen);
+	memcpy(&dcid, &pkt[6], dcidlen);
 
-	// parse source connection id
-	size_t scidlen = pkt[6 + dcidlen];
-	len += scidlen + 1; // add one for next field
+	ngtcp2_cid scid;
+	dcid.datalen = scidlen;
+	memcpy(&dcid, &pkt[6 + dcidlen + 1], scidlen);
+
+	len += 1;
 	if (pktlen < len)
 	{
 		return 0;
 	}
-	ngtcp2_cid scid;
-	dcid.datalen = scidlen;
-	memcpy(&dcid, pkt[6], scidlen);
+
+	ngtcp2_token_type token_type = NGTCP2_TOKEN_TYPE_UNKNOWN;
+	ngtcp2_cid *original_dcid = NULL;
 
 	switch (pkt[0] & TYPE_BIT_MASK)
 	{
 		case PKT_INITIAL:
 		{
-			res = verify_token();
+			res = verify_token(odcid, token, original_dcid, &token_type);
 			if (res != 0)
 			{
 				return res;
 			}
+
 			break;
 		}
 		case PKT_0RTT:
 		{
-			return handle_0rtt_pkt(event, pkt, pktlen, addr, addrlen);
+			return 0;
 		}
 		default:
 		{
@@ -91,10 +101,11 @@ static int decode_long_header(struct read_storage *event, uint8_t *pkt, size_t p
 		}
 	}
 
-	res = get_packet_length();
-	if (res != 0)
+	size_t rest_length = get_uvarintlen(&pkt[len]);
+	len += rest_length - 1;
+	if (pktlen < len)
 	{
-		return res;
+		return 0;
 	}
 
 	res = get_packet_number();
@@ -104,65 +115,49 @@ static int decode_long_header(struct read_storage *event, uint8_t *pkt, size_t p
 	}
 }
 
-int handle_initial_pkt(uint8_t pkt, size_t pktlen)
+int verify_token(union uvarint token, size_t tokenlen, ngtcp2_cid original_dcid, ngtcp2_token_type *token_type)
 {
-	res = verify_token(pkt, pktlen);
-	if (res != 0)
-	{
-		return res;
-	}
-}
-
-int verify_token(uint8_t pkt, size_t pktlen)
-{
-	size_t tokenlen = get_uvarintlen(pkt[len]);
+	union uvarint token;
+	size_t tokenlen = get_uvarint(pkt[len], token);
 	if (tokenlen == 0)
 	{
-		return send_retry_packet(version, dcid, scid, original_dcid, token, tokenlen, addr);
+		return send_retry_packet(version, dcid, scid, original_dcid, addr);
+	}
+	else if (token.n8 != NGTCP2_CRYPTO_TOKEN_MAGIC_RETRY && dcid.datalen < NGTCP2_MIN_INITIAL_DCIDLEN)
+	{
+		return send_connection_close_packet(version, dcid, scid, 0, NULL, 0, addr, addrlen);
 	}
 
-	len += tokenlen - 1; // subtracted because byte is already added
+	len += tokenlen + 1;
 	if (pktlen < len)
 	{
 		return 0;
-	}
-
-	token token_storage;
-	ngtcp2_get_uvarint(&pkt[len], token, tokenlen);
-
-	if (token[0] != NGTCP2_CRYPTO_TOKEN_MAGIC_RETRY && datalen < NGTCP2_MIN_INITIAL_DCIDLEN)
-	{
-		return send_connection_close_packet(version, dcid, scid, 0, NULL, 0, addr, addrlen);
 	}
 
 	switch (token[0])
 	{
 		case NGTCP2_CRYPTO_TOKEN_MAGIC_RETRY:
 		{
-			ngtcp2_tstamp timestamp = get_timestamp_ns();
-
 			res = ngtcp2_crypto_verify_retry_token(original_dcid, token, tokenlen, secret.data, secret.datalen, version,
-			                                       sockaddr, sockaddr_len, dcid, RETRY_TIMEOUT, timestamp);
-			if (res == 0)
+			                                       sockaddr, sockaddr_len, dcid, RETRY_TIMEOUT, get_timestamp_ns());
+			if (res == -1)
 			{
 				return send_connection_close_packet(version, dcid, scid, 0, NULL, 0, addr, addrlen);
 			}
 
-			token_type = NGTCP2_TOKEN_TYPE_RETRY;
+			*token_type = NGTCP2_TOKEN_TYPE_RETRY;
 			return 0;
 		}
 		case NGTCP2_CRYPTO_TOKEN_MAGIC_REGULAR:
 		{
-			ngtcp2_tstamp timestamp = get_timestamp_ns();
-
 			res = ngtcp2_crypto_verify_regular_token(token, tokenlen, secret.data, secret.datalen, sockaddr,
-			                                         sockaddr_len, TIMEOUT, timestamp);
-			if (res == 0)
+			                                         sockaddr_len, TIMEOUT, get_timestamp_ns());
+			if (res == -1)
 			{
 				return send_retry_packet(version, dcid, scid, original_dcid, token, tokenlen, addr);
 			}
 
-			token_type = NGTCP2_TOKEN_TYPE_NEW_TOKEN;
+			*token_type = NGTCP2_TOKEN_TYPE_NEW_TOKEN;
 			return 0;
 		}
 		default:

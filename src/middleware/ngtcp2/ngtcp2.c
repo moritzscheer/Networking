@@ -163,7 +163,8 @@ ngtcp2_cid *generate_cid()
 	ngtcp2_cid *cid;
 	uint8_t buf[NGTCP2_MAX_CIDLEN];
 
-	if (RAND_bytes(buf, sizeof(buf)) != 1)
+	int res = RAND_bytes(buf, sizeof(buf));
+	if (res < 0)
 	{
 		return NULL;
 	}
@@ -171,15 +172,12 @@ ngtcp2_cid *generate_cid()
 	return cid;
 }
 
-int generate_cid(ngtcp2_cid *cid, size_t len)
+int generate_cid(ngtcp2_cid *cid)
 {
-	if (len > NGTCP2_MAX_CIDLEN)
+	cid->datalen = NGTCP2_MAX_CIDLEN;
+	if(get_random(cid->data, NGTCP2_MAX_CIDLEN) == -1)
 	{
 		return -1;
 	}
-
-	cid->datalen = len;
-	rand_bytes(cid->data, cid->datalen);
-
 	return 0;
 }

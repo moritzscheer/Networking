@@ -15,27 +15,8 @@ struct connection *find_connection(ngtcp2_cid *dcid)
 	return connection;
 }
 
-int get_connection(struct connection *connection, struct read_event *event)
+struct connection *create_connection(struct connection *connection, struct read_storage *event)
 {
-	HASH_FIND(hh, connections, event->dcid, sizeof(event->dcid), connection);
-	if (connection)
-	{
-		if (!scid_valid(connection->ngtcp2_conn, scid))
-		{
-			connection = NULL;
-		}
-		return 0;
-	}
-
-	ngtcp2_cid *original_dcid = NULL;
-	ngtcp2_token_type token_type = NGTCP2_TOKEN_TYPE_UNKNOWN;
-
-	res = verify_initial_packet(original_dcid, token_type, event);
-	if (token_type == NGTCP2_TOKEN_TYPE_UNKNOWN)
-	{
-		return res;
-	}
-
 	connection = calloc(1, sizeof(struct connection));
 	if (!connection)
 	{
@@ -50,7 +31,7 @@ int get_connection(struct connection *connection, struct read_event *event)
 	}
 
 	connection->cid = event->dcid;
-	conn->streams = NULL;
+	connection->streams = NULL;
 
 	HASH_ADD_KEYPTR(hh, connections, connection->cid, sizeof(connection->cid), connection);
 	return 0;
