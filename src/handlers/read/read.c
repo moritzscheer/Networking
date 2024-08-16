@@ -76,43 +76,9 @@ int validate_read(struct io_uring_cqe *cqe)
 
 static int resolve_success(void *pkt, size_t pktlen, struct sockaddr_storage *addr, socklen_t addrlen)
 {
-	ngtcp2_version_cid vcid;
-
-	res = ngtcp2_pkt_decode_version_cid(&vcid, pkt, pktlen, NGTCP2_MAX_CIDLEN);
-	if (res == NGTCP2_ERR_VERSION_NEGOTIATION)
-	{
-		return send_version_negotiation_packet(vcid->dcid, vcid->dcidlen, vcid->scid, vcid->scidlen);
-	}
-	else if (res != 0)
-	{
-		return DROP;
-	}
-
-	struct read_event *event = create_read_event(&vcid, pkt, pktlen, addr);
-	if (!event)
-	{
-		return ENOMEM;
-	}
-
-	struct connection *connection = NULL;
-	pthread_mutex_lock(&conn_mutex);
-
-	res = get_connection(connection, event);
-	if (!connection)
-	{
-		free(event);
-		return unlock_and_return(&mutex, res);
-	}
-
-	enqueue_read_event(connection, event);
-	return unlock_and_return(&conn_mutex, res);
-}
-
-static int resolve_success(void *pkt, size_t pktlen, struct sockaddr_storage *addr, socklen_t addrlen)
-{
 	struct read_storage *event = NULL;
 
-	if (pkt[0] & 0x80)
+	if (pkt[0] & FORM_BIT_MASK)
 	{
 		res = decode_long_header(event, pkt, pktlen, addr, addrlen);
 		if (!event)

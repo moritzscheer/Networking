@@ -1,0 +1,3 @@
+[submodule "lib/ngtcp2"]
+	path = lib/ngtcp2
+	url = https://github.com/ngtcp2/ngtcp2.git

@@ -4,6 +4,7 @@
 #define _HEADER_H_
 
 #define FIXED_BIT_MASK 0x40
+#define FORM_BIT_MASK 0x80
 
 #define TYPE_BIT_MASK 0x30
 
